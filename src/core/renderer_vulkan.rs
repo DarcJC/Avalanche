@@ -110,6 +110,9 @@ impl VulkanRenderer {
             vk::KhrWin32SurfaceFn::name().as_ptr(),
         ];
 
+        #[cfg(debug_assertions)]
+        extension_names.push(ash::extensions::ext::DebugUtils::name().as_ptr());
+
         let available_extensions = entry.enumerate_instance_extension_properties(None).expect("Failed to enumerate instance extension properties.");
 
         extension_names.retain(|&ext_name| {
@@ -121,6 +124,28 @@ impl VulkanRenderer {
         });
 
         extension_names
+    }
+
+    fn get_layer_names(entry: &ash::Entry) -> Vec<*const c_char> {
+        let mut layers = vec![];
+
+        #[cfg(debug_assertions)]
+        unsafe {
+            layers.push(
+                CStr::from_bytes_with_nul_unchecked(b"VK_LAYER_KHRONOS_validation\0").as_ptr()
+            );
+        }
+
+        let available_layers = entry.enumerate_instance_layer_properties().expect("Failed to enumerate instance layer properties.");
+        layers.retain(|&layer_name| {
+            let layer_name_cstr = unsafe { CStr::from_ptr(layer_name) };
+            available_layers.iter().any(|layer| {
+                let available_layer_name_cstr = unsafe { CStr::from_ptr(layer.layer_name.as_ptr()) };
+                layer_name_cstr == available_layer_name_cstr
+            })
+        });
+
+        layers
     }
 }
 
@@ -141,9 +166,17 @@ impl Renderer for VulkanRenderer {
 
         // Define the instance create info.
         let extension_names = VulkanRenderer::get_extension_names(&entry);
+        let layer_names = VulkanRenderer::get_layer_names(&entry);
+        let create_flags = if cfg!(any(target_os = "macos", target_os = "ios")) {
+            vk::InstanceCreateFlags::ENUMERATE_PORTABILITY_KHR
+        } else {
+            vk::InstanceCreateFlags::default()
+        };
         let create_info = vk::InstanceCreateInfo::builder()
             .application_info(&app_info)
             .enabled_extension_names(&extension_names)
+            .enabled_layer_names(&layer_names)
+            .flags(create_flags)
             .build();
 
         // Create the instance.
