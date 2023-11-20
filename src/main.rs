@@ -13,6 +13,24 @@ fn main() {
 
     let mut window_manager = WindowManager::new(renderer);
     window_manager.create_window(&mut event_loop_manager, "QwQ", 800, 600);
-    event_loop_manager.run(|event, target_window| {
+    event_loop_manager.run(move |event, target_window| {
+        match event {
+            winit::event::Event::WindowEvent {
+                event: winit::event::WindowEvent::CloseRequested,
+                window_id,
+            } => {
+                target_window.exit();
+            },
+            winit::event::Event::WindowEvent {
+                event: winit::event::WindowEvent::RedrawRequested,
+                window_id,
+            } => {
+                // call graphics api to draw
+            },
+            winit::event::Event::AboutToWait => {
+                window_manager.request_redraw_all_windows();
+            },
+            _ => {},
+        };
     });
 }
