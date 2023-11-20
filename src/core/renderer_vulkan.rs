@@ -87,7 +87,7 @@ impl VulkanRenderer {
 
         // Fill device create info
         let device_create_info = vk::DeviceCreateInfo::builder()
-            .enabled_extension_names(&self.get_extension_names())
+            .enabled_extension_names(&VulkanRenderer::get_extension_names(&self.entry))
             .queue_create_infos(&[graphics_queue_create_info, compute_queue_create_info])
             .build();
 
@@ -96,7 +96,7 @@ impl VulkanRenderer {
         }
     }
 
-    fn get_extension_names(&self) -> Vec<*const c_char> {
+    fn get_extension_names(entry: &ash::Entry) -> Vec<*const c_char> {
         let mut extension_names = vec![
             ash::extensions::khr::Surface::name().as_ptr(),
             ash::extensions::khr::Swapchain::name().as_ptr(),
@@ -107,32 +107,7 @@ impl VulkanRenderer {
             ash::extensions::ext::MetalSurface::name().as_ptr(),
             vk::KhrPortabilityEnumerationFn::name().as_ptr(),
             vk::KhrGetPhysicalDeviceProperties2Fn::name().as_ptr(),
-        ];
-
-        let available_extensions = self.entry.enumerate_instance_extension_properties(None).expect("Failed to enumerate instance extension properties.");
-
-        extension_names.retain(|&ext_name| {
-            let ext_name_cstr = unsafe { CStr::from_ptr(ext_name) };
-            available_extensions.iter().any(|ext| {
-                let available_ext_name_cstr = unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) };
-                ext_name_cstr == available_ext_name_cstr
-            })
-        });
-
-        extension_names
-    }
-
-    fn get_extension_names2(entry: &ash::Entry) -> Vec<*const c_char> {
-        let mut extension_names = vec![
-            ash::extensions::khr::Surface::name().as_ptr(),
-            ash::extensions::khr::Swapchain::name().as_ptr(),
-            ash::extensions::khr::WaylandSurface::name().as_ptr(),
-            ash::extensions::khr::XlibSurface::name().as_ptr(),
-            ash::extensions::khr::XcbSurface::name().as_ptr(),
-            ash::extensions::khr::AndroidSurface::name().as_ptr(),
-            ash::extensions::ext::MetalSurface::name().as_ptr(),
-            vk::KhrPortabilityEnumerationFn::name().as_ptr(),
-            vk::KhrGetPhysicalDeviceProperties2Fn::name().as_ptr(),
+            vk::KhrWin32SurfaceFn::name().as_ptr(),
         ];
 
         let available_extensions = entry.enumerate_instance_extension_properties(None).expect("Failed to enumerate instance extension properties.");
@@ -165,7 +140,7 @@ impl Renderer for VulkanRenderer {
             .api_version(vk::API_VERSION_1_3);
 
         // Define the instance create info.
-        let extension_names = VulkanRenderer::get_extension_names2(&entry);
+        let extension_names = VulkanRenderer::get_extension_names(&entry);
         let create_info = vk::InstanceCreateInfo::builder()
             .application_info(&app_info)
             .enabled_extension_names(&extension_names)
