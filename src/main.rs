@@ -10,9 +10,10 @@ fn main() {
     let mut event_loop_manager = EventLoopManager::new();
     let mut renderer = VulkanRenderer::new();
     renderer.list_physical_devices();
-
     let mut window_manager = WindowManager::new(renderer);
     window_manager.create_window(&mut event_loop_manager, "QwQ", 800, 600);
+    window_manager.borrow_renderer_mut().initialize();
+
     event_loop_manager.run(move |event, target_window| {
         match event {
             winit::event::Event::WindowEvent {

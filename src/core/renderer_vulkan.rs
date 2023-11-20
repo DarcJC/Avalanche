@@ -6,6 +6,12 @@ use crate::ash_window;
 use crate::core::event_loop::EventLoopManager;
 use crate::core::renderer_trait::Renderer;
 
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+pub struct QueueInfo {
+    graphics: u32,
+    compute: u32,
+}
+
 pub struct VulkanRenderer {
     entry: ash::Entry,
     instance: ash::Instance,
@@ -13,6 +19,7 @@ pub struct VulkanRenderer {
     physical_device: Option<vk::PhysicalDevice>,
     logical_device: Option<ash::Device>,
     surfaces: HashMap<winit::window::WindowId, vk::SurfaceKHR>,
+    queue_info: QueueInfo,
 }
 
 impl VulkanRenderer {
@@ -52,7 +59,7 @@ impl VulkanRenderer {
         best_device.expect("No suitable physical device found.")
     }
 
-    fn create_logical_device(&self) -> ash::Device {
+    fn create_logical_device(&mut self) -> ash::Device {
         // Check queue families
         let queue_families = unsafe {
             self.instance.get_physical_device_queue_family_properties(self.physical_device.unwrap())
@@ -65,6 +72,7 @@ impl VulkanRenderer {
             .find(|(_index, queue_family_prop)| queue_family_prop.queue_flags.contains(vk::QueueFlags::GRAPHICS))
             .map(|(index, _)| index as u32)
             .expect("No suitable graphics queue family found.");
+        self.queue_info.graphics = graphics_queue_family_index;
 
         // Find queue families that supporting graphics commands
         let compute_queue_family_index = queue_families
@@ -73,22 +81,31 @@ impl VulkanRenderer {
             .find(|(_index, queue_family_prop)| queue_family_prop.queue_flags.contains(vk::QueueFlags::COMPUTE))
             .map(|(index, _)| index as u32)
             .expect("No suitable compute queue family found.");
+        self.queue_info.compute = compute_queue_family_index;
 
         // Fill queue create info
+        let mut queue_create_infos = Vec::new();
+
         let graphics_queue_create_info = vk::DeviceQueueCreateInfo::builder()
             .queue_family_index(graphics_queue_family_index)
             .queue_priorities(&[1.0])
             .build();
+        queue_create_infos.push(graphics_queue_create_info);
 
-        let compute_queue_create_info = vk::DeviceQueueCreateInfo::builder()
-            .queue_family_index(compute_queue_family_index)
-            .queue_priorities(&[1.0])
-            .build();
+        if compute_queue_family_index != graphics_queue_family_index {
+            let compute_queue_create_info = vk::DeviceQueueCreateInfo::builder()
+                .queue_family_index(compute_queue_family_index)
+                .queue_priorities(&[1.0])
+                .build();
+            queue_create_infos.push(compute_queue_create_info);
+        }
 
         // Fill device create info
+        let extension_names = self.get_device_extension_names();
         let device_create_info = vk::DeviceCreateInfo::builder()
-            .enabled_extension_names(&VulkanRenderer::get_extension_names(&self.entry))
-            .queue_create_infos(&[graphics_queue_create_info, compute_queue_create_info])
+            .enabled_extension_names(&extension_names)
+            .queue_create_infos(&queue_create_infos)
+            .enabled_features(&vk::PhysicalDeviceFeatures::default())
             .build();
 
         unsafe {
@@ -96,15 +113,8 @@ impl VulkanRenderer {
         }
     }
 
-    fn get_extension_names(entry: &ash::Entry) -> Vec<*const c_char> {
+    fn get_instance_extension_names(entry: &ash::Entry) -> Vec<*const c_char> {
         let mut extension_names = vec![
-            ash::extensions::khr::Surface::name().as_ptr(),
-            ash::extensions::khr::Swapchain::name().as_ptr(),
-            ash::extensions::khr::WaylandSurface::name().as_ptr(),
-            ash::extensions::khr::XlibSurface::name().as_ptr(),
-            ash::extensions::khr::XcbSurface::name().as_ptr(),
-            ash::extensions::khr::AndroidSurface::name().as_ptr(),
-            ash::extensions::ext::MetalSurface::name().as_ptr(),
             vk::KhrPortabilityEnumerationFn::name().as_ptr(),
             vk::KhrGetPhysicalDeviceProperties2Fn::name().as_ptr(),
             vk::KhrWin32SurfaceFn::name().as_ptr(),
@@ -114,6 +124,30 @@ impl VulkanRenderer {
         extension_names.push(ash::extensions::ext::DebugUtils::name().as_ptr());
 
         let available_extensions = entry.enumerate_instance_extension_properties(None).expect("Failed to enumerate instance extension properties.");
+
+        extension_names.retain(|&ext_name| {
+            let ext_name_cstr = unsafe { CStr::from_ptr(ext_name) };
+            available_extensions.iter().any(|ext| {
+                let available_ext_name_cstr = unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) };
+                ext_name_cstr == available_ext_name_cstr
+            })
+        });
+
+        extension_names
+    }
+
+    fn get_device_extension_names(&self) -> Vec<*const c_char> {
+        let mut extension_names = vec![
+            ash::extensions::khr::Surface::name().as_ptr(),
+            ash::extensions::khr::Swapchain::name().as_ptr(),
+            ash::extensions::khr::WaylandSurface::name().as_ptr(),
+            ash::extensions::khr::XlibSurface::name().as_ptr(),
+            ash::extensions::khr::XcbSurface::name().as_ptr(),
+            ash::extensions::khr::AndroidSurface::name().as_ptr(),
+            ash::extensions::ext::MetalSurface::name().as_ptr(),
+        ];
+
+        let available_extensions = unsafe { self.instance.enumerate_device_extension_properties(self.physical_device.unwrap()).expect("Failed to enumerate device extensions.") };
 
         extension_names.retain(|&ext_name| {
             let ext_name_cstr = unsafe { CStr::from_ptr(ext_name) };
@@ -165,7 +199,7 @@ impl Renderer for VulkanRenderer {
             .api_version(vk::API_VERSION_1_3);
 
         // Define the instance create info.
-        let extension_names = VulkanRenderer::get_extension_names(&entry);
+        let extension_names = VulkanRenderer::get_instance_extension_names(&entry);
         let layer_names = VulkanRenderer::get_layer_names(&entry);
         let create_flags = if cfg!(any(target_os = "macos", target_os = "ios")) {
             vk::InstanceCreateFlags::ENUMERATE_PORTABILITY_KHR
@@ -189,6 +223,7 @@ impl Renderer for VulkanRenderer {
             physical_device: None,
             logical_device: None,
             surfaces: HashMap::new(),
+            queue_info: QueueInfo::default(),
         }
     }
 

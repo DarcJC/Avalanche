@@ -14,6 +14,14 @@ impl<R: Renderer> WindowManager<R> {
         }
     }
 
+    pub fn borrow_renderer(&self) -> &R {
+        &self.renderer
+    }
+
+    pub fn borrow_renderer_mut(&mut self) -> &mut R {
+        &mut self.renderer
+    }
+
     pub fn create_window(&mut self, event_loop: &mut EventLoopManager, title: &str, width: u32, height: u32) {
         let window = self.renderer.create_window(event_loop, title, width, height);
         self.windows.push(window);
