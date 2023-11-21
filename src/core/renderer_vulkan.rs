@@ -22,6 +22,20 @@ pub struct VulkanRenderer {
     queue_info: QueueInfo,
 }
 
+pub fn retain_available_names(names: &mut Vec<*const c_char>, available_properties: &Vec<*const c_char>) {
+    let available_names_cstr: Vec<_> = available_properties
+        .iter()
+        .map(|prop| unsafe { CStr::from_ptr(*prop) })
+        .collect();
+
+    names.retain(|&name| {
+        let name_cstr = unsafe { CStr::from_ptr(name) };
+        available_names_cstr.iter().any(|&available_name| {
+            name_cstr == available_name
+        })
+    });
+}
+
 impl VulkanRenderer {
     fn rate_device(&self, device: &vk::PhysicalDevice) -> i8 {
         let properties = unsafe { self.instance.get_physical_device_properties(*device) };
@@ -125,13 +139,7 @@ impl VulkanRenderer {
 
         let available_extensions = entry.enumerate_instance_extension_properties(None).expect("Failed to enumerate instance extension properties.");
 
-        extension_names.retain(|&ext_name| {
-            let ext_name_cstr = unsafe { CStr::from_ptr(ext_name) };
-            available_extensions.iter().any(|ext| {
-                let available_ext_name_cstr = unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) };
-                ext_name_cstr == available_ext_name_cstr
-            })
-        });
+        retain_available_names(&mut extension_names, &available_extensions.iter().map(|ext| ext.extension_name.as_ptr()).collect::<Vec<_>>());
 
         extension_names
     }
@@ -149,13 +157,7 @@ impl VulkanRenderer {
 
         let available_extensions = unsafe { self.instance.enumerate_device_extension_properties(self.physical_device.unwrap()).expect("Failed to enumerate device extensions.") };
 
-        extension_names.retain(|&ext_name| {
-            let ext_name_cstr = unsafe { CStr::from_ptr(ext_name) };
-            available_extensions.iter().any(|ext| {
-                let available_ext_name_cstr = unsafe { CStr::from_ptr(ext.extension_name.as_ptr()) };
-                ext_name_cstr == available_ext_name_cstr
-            })
-        });
+        retain_available_names(&mut extension_names, &available_extensions.iter().map(|ext| ext.extension_name.as_ptr()).collect::<Vec<_>>());
 
         extension_names
     }
@@ -171,14 +173,8 @@ impl VulkanRenderer {
         }
 
         let available_layers = entry.enumerate_instance_layer_properties().expect("Failed to enumerate instance layer properties.");
-        layers.retain(|&layer_name| {
-            let layer_name_cstr = unsafe { CStr::from_ptr(layer_name) };
-            available_layers.iter().any(|layer| {
-                let available_layer_name_cstr = unsafe { CStr::from_ptr(layer.layer_name.as_ptr()) };
-                layer_name_cstr == available_layer_name_cstr
-            })
-        });
 
+        retain_available_names(&mut layers, &available_layers.iter().map(|layer| layer.layer_name.as_ptr()).collect::<Vec<_>>());
         layers
     }
 }
