@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 use std::default::Default;
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{c_char, c_void, CStr, CString};
+use std::ptr::addr_of_mut;
 use ash::vk;
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use crate::ash_window;
 use crate::core::event_loop::EventLoopManager;
-use crate::core::renderer_trait::Renderer;
+use crate::core::renderer_trait::{Buffer, buffer_cast, GraphicAPIBounds, RayTracingRenderer, Renderer};
+use crate::core::renderer_types::{BLASBuildData, GraphicsAPIType};
+use crate::core::scene::Mesh;
 
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct QueueInfo {
@@ -17,6 +20,7 @@ pub struct QueueInfo {
 pub struct CompatibilityFlags {
     khr_acceleration_structure: bool,
     khr_ray_tracing_pipeline: bool,
+    rt_max_ray_recursion_depth: u32,
 }
 
 impl Default for CompatibilityFlags {
@@ -24,8 +28,13 @@ impl Default for CompatibilityFlags {
         Self {
             khr_acceleration_structure: false,
             khr_ray_tracing_pipeline: false,
+            rt_max_ray_recursion_depth: 0,
         }
     }
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct VulkanAccelerationStructureState {
 }
 
 pub struct VulkanRenderer {
@@ -36,6 +45,7 @@ pub struct VulkanRenderer {
     surfaces: HashMap<winit::window::WindowId, vk::SurfaceKHR>,
     queue_info: QueueInfo,
     compatibility_flags: CompatibilityFlags,
+    rt_as_state: VulkanAccelerationStructureState,
 }
 
 pub fn retain_available_names(names: &mut Vec<*const c_char>, available_properties: &Vec<*const c_char>) {
@@ -222,6 +232,13 @@ impl VulkanRenderer {
                         &ash::extensions::khr::RayTracingPipeline::name().as_ptr()
                     )
             );
+
+        let mut props2 = vk::PhysicalDeviceProperties2::default();
+        let mut device_ray_tracing_prop = vk::PhysicalDeviceRayTracingPipelinePropertiesKHR::default();
+        props2.p_next = &mut device_ray_tracing_prop as *mut _ as *mut c_void;
+        unsafe { self.instance.get_physical_device_properties2(self.physical_device.unwrap(), &mut props2) } ;
+        self.compatibility_flags.rt_max_ray_recursion_depth = device_ray_tracing_prop.max_ray_recursion_depth;
+
         println!("System Compatibility: {:?}", self.compatibility_flags);
     }
 }
@@ -232,8 +249,8 @@ impl Renderer for VulkanRenderer {
         let entry = unsafe { ash::Entry::load() }.unwrap();
 
         // Define the application info.
-        let app_name = CString::new("Hello Vulkan").unwrap();
-        let engine_name = CString::new("No Engine").unwrap();
+        let app_name = CString::new("Avalanche").unwrap();
+        let engine_name = CString::new("Avalanche").unwrap();
         let app_info = vk::ApplicationInfo::builder()
             .application_name(&app_name)
             .application_version(0)
@@ -267,6 +284,7 @@ impl Renderer for VulkanRenderer {
             surfaces: HashMap::new(),
             queue_info: QueueInfo::default(),
             compatibility_flags: CompatibilityFlags::default(),
+            rt_as_state: VulkanAccelerationStructureState::default(),
         }
     }
 
@@ -308,6 +326,19 @@ impl Renderer for VulkanRenderer {
     fn support_ray_tracing(&self) -> bool {
         self.compatibility_flags.khr_acceleration_structure && self.compatibility_flags.khr_ray_tracing_pipeline
     }
+
+    fn create_buffer_resource(&mut self, buffer: &mut impl Buffer) {
+        let buffer = buffer_cast::<VulkanBuffer, _>(buffer).unwrap();
+        if let Some(device) = &self.logical_device {
+            buffer.resource = Some(unsafe { device.create_buffer(&buffer.create_info, None).expect("Failed to create buffer.") });
+        }
+    }
+}
+
+impl GraphicAPIBounds for VulkanRenderer {
+    fn get_graphics_api() -> GraphicsAPIType {
+        GraphicsAPIType::Vulkan
+    }
 }
 
 impl Drop for VulkanRenderer {
@@ -316,5 +347,31 @@ impl Drop for VulkanRenderer {
         unsafe {
             self.instance.destroy_instance(None);
         }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct VulkanBuffer {
+    pub create_info: vk::BufferCreateInfo,
+    resource: Option<vk::Buffer>,
+}
+
+impl Buffer for VulkanBuffer {
+    fn get_buffer_name<'a>() -> &'a str {
+        "Vulkan Buffer Temp Name"
+    }
+}
+
+impl GraphicAPIBounds for VulkanBuffer {
+    fn get_graphics_api() -> GraphicsAPIType {
+        GraphicsAPIType::Vulkan
+    }
+}
+
+// pub fn mesh_to_vk_geometry_khr(mesh: &impl Mesh, vertex_buffer_addr: vk::DeviceAddress, index_buffer_addr: vk::DeviceAddress) -> (vk::AccelerationStructureGeometryKHR, vk::AccelerationStructureBuildRangeInfoKHR) {
+// }
+
+impl RayTracingRenderer for VulkanRenderer {
+    fn build_bottom_level_acceleration_structure(&mut self, inputs: &BLASBuildData) {
     }
 }

@@ -13,6 +13,7 @@ ash = "0.37.3"
 winit = "0.29.3"
 once_cell = "1.18.0"
 raw-window-handle = "0.6.0"
+tobj = "4.0.0"
 
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
 raw-window-metal = "0.3"
