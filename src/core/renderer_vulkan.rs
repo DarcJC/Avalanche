@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::default::Default;
 use std::ffi::{c_char, CStr, CString};
 use ash::vk;
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
@@ -12,14 +13,29 @@ pub struct QueueInfo {
     compute: u32,
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct CompatibilityFlags {
+    khr_acceleration_structure: bool,
+    khr_ray_tracing_pipeline: bool,
+}
+
+impl Default for CompatibilityFlags {
+    fn default() -> Self {
+        Self {
+            khr_acceleration_structure: false,
+            khr_ray_tracing_pipeline: false,
+        }
+    }
+}
+
 pub struct VulkanRenderer {
     entry: ash::Entry,
     instance: ash::Instance,
-    event_loop: Option<winit::event_loop::EventLoop<()>>,
     physical_device: Option<vk::PhysicalDevice>,
     logical_device: Option<ash::Device>,
     surfaces: HashMap<winit::window::WindowId, vk::SurfaceKHR>,
     queue_info: QueueInfo,
+    compatibility_flags: CompatibilityFlags,
 }
 
 pub fn retain_available_names(names: &mut Vec<*const c_char>, available_properties: &Vec<*const c_char>) {
@@ -34,6 +50,12 @@ pub fn retain_available_names(names: &mut Vec<*const c_char>, available_properti
             name_cstr == available_name
         })
     });
+}
+
+pub fn compare_c_str_value(value1: &*const c_char, value2: &*const c_char) -> bool {
+    let value1_cstr = unsafe { CStr::from_ptr(*value1) };
+    let value2_cstr = unsafe { CStr::from_ptr(*value2) };
+    value1_cstr == value2_cstr
 }
 
 impl VulkanRenderer {
@@ -129,9 +151,15 @@ impl VulkanRenderer {
 
     fn get_instance_extension_names(entry: &ash::Entry) -> Vec<*const c_char> {
         let mut extension_names = vec![
+            ash::extensions::khr::Surface::name().as_ptr(),
             vk::KhrPortabilityEnumerationFn::name().as_ptr(),
             vk::KhrGetPhysicalDeviceProperties2Fn::name().as_ptr(),
             vk::KhrWin32SurfaceFn::name().as_ptr(),
+            ash::extensions::khr::WaylandSurface::name().as_ptr(),
+            ash::extensions::khr::XlibSurface::name().as_ptr(),
+            ash::extensions::khr::XcbSurface::name().as_ptr(),
+            ash::extensions::khr::AndroidSurface::name().as_ptr(),
+            ash::extensions::ext::MetalSurface::name().as_ptr(),
         ];
 
         #[cfg(debug_assertions)]
@@ -146,13 +174,7 @@ impl VulkanRenderer {
 
     fn get_device_extension_names(&self) -> Vec<*const c_char> {
         let mut extension_names = vec![
-            ash::extensions::khr::Surface::name().as_ptr(),
             ash::extensions::khr::Swapchain::name().as_ptr(),
-            ash::extensions::khr::WaylandSurface::name().as_ptr(),
-            ash::extensions::khr::XlibSurface::name().as_ptr(),
-            ash::extensions::khr::XcbSurface::name().as_ptr(),
-            ash::extensions::khr::AndroidSurface::name().as_ptr(),
-            ash::extensions::ext::MetalSurface::name().as_ptr(),
         ];
 
         let available_extensions = unsafe { self.instance.enumerate_device_extension_properties(self.physical_device.unwrap()).expect("Failed to enumerate device extensions.") };
@@ -176,6 +198,31 @@ impl VulkanRenderer {
 
         retain_available_names(&mut layers, &available_layers.iter().map(|layer| layer.layer_name.as_ptr()).collect::<Vec<_>>());
         layers
+    }
+
+    fn check_compatibility(&mut self) {
+        let device_extensions = unsafe {
+            self.instance.enumerate_device_extension_properties(self.physical_device.unwrap()).expect("Failed to enumerate device extension properties.")
+        };
+        self.compatibility_flags.khr_acceleration_structure = device_extensions
+            .iter()
+            .any(
+                |prop|
+                    compare_c_str_value(
+                        &prop.extension_name.as_ptr(),
+                        &ash::extensions::khr::AccelerationStructure::name().as_ptr()
+                    )
+            );
+        self.compatibility_flags.khr_ray_tracing_pipeline = device_extensions
+            .iter()
+            .any(
+                |prop|
+                    compare_c_str_value(
+                        &prop.extension_name.as_ptr(),
+                        &ash::extensions::khr::RayTracingPipeline::name().as_ptr()
+                    )
+            );
+        println!("System Compatibility: {:?}", self.compatibility_flags);
     }
 }
 
@@ -215,11 +262,11 @@ impl Renderer for VulkanRenderer {
         VulkanRenderer {
             entry,
             instance,
-            event_loop: None,
             physical_device: None,
             logical_device: None,
             surfaces: HashMap::new(),
             queue_info: QueueInfo::default(),
+            compatibility_flags: CompatibilityFlags::default(),
         }
     }
 
@@ -247,7 +294,7 @@ impl Renderer for VulkanRenderer {
         // Print out the physical devices.
         for (i, physical_device) in physical_devices.iter().enumerate() {
             let properties = unsafe { self.instance.get_physical_device_properties(*physical_device) };
-            let device_name = unsafe { std::ffi::CStr::from_ptr(properties.device_name.as_ptr()) };
+            let device_name = unsafe { CStr::from_ptr(properties.device_name.as_ptr()) };
             println!("Device {}: {:?}", i, device_name);
         }
     }
@@ -255,6 +302,11 @@ impl Renderer for VulkanRenderer {
     fn initialize(&mut self) {
         self.physical_device = Some(self.select_physical_device());
         self.logical_device = Some(self.create_logical_device());
+        self.check_compatibility();
+    }
+
+    fn support_ray_tracing(&self) -> bool {
+        self.compatibility_flags.khr_acceleration_structure && self.compatibility_flags.khr_ray_tracing_pipeline
     }
 }
 
@@ -262,9 +314,6 @@ impl Drop for VulkanRenderer {
     fn drop(&mut self) {
         // Cleanup.
         unsafe {
-            if let Some(event_loop) = self.event_loop.take() {
-                event_loop.exit();
-            }
             self.instance.destroy_instance(None);
         }
     }
