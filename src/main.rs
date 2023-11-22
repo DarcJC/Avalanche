@@ -11,7 +11,7 @@ use crate::core::renderer_trait::{RayTracingRenderer, Renderer};
 use crate::core::renderer_types::BLASBuildData;
 use crate::core::renderer_vulkan::{VulkanBuffer, VulkanRenderer};
 use crate::core::scene::TObjMeshWrapper;
-use crate::core::window_manager::WindowManager;
+use crate::core::window_manager::{WindowManager, WindowManagerTrait};
 
 fn main() {
     let mut event_loop_manager = EventLoopManager::new();
@@ -27,13 +27,13 @@ fn main() {
         match event {
             winit::event::Event::WindowEvent {
                 event: winit::event::WindowEvent::CloseRequested,
-                window_id,
+                window_id: _window_id,
             } => {
                 target_window.exit();
             },
             winit::event::Event::WindowEvent {
                 event: winit::event::WindowEvent::RedrawRequested,
-                window_id,
+                window_id: _window_id,
             } => {
                 // call graphics api to draw
             },

@@ -1,5 +1,3 @@
-use std::any::Any;
-use std::ptr::addr_of_mut;
 use crate::core::event_loop::EventLoopManager;
 use crate::core::renderer_types::{BLASBuildData, GraphicsAPIType};
 
@@ -21,6 +19,8 @@ pub trait RayTracingRenderer {
 pub trait GraphicAPIBounds {
     fn get_graphics_api() -> GraphicsAPIType where Self: Sized;
 }
+
+pub trait GraphicsAbstract : GraphicAPIBounds + Renderer + RayTracingRenderer {}
 
 pub trait Buffer where Self: GraphicAPIBounds {
     fn get_buffer_name<'a>() -> &'a str where Self: Sized;

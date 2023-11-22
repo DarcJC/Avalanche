@@ -48,7 +48,7 @@ pub unsafe fn create_surface(
         (RawDisplayHandle::Windows(_), RawWindowHandle::Win32(window)) => {
             let surface_desc = vk::Win32SurfaceCreateInfoKHR::builder()
                 .hinstance(vk::HINSTANCE::from(window.hinstance.unwrap().get() as *const c_void))
-                .hwnd(unsafe { vk::HWND::from(window.hwnd.get() as *const c_void) })
+                .hwnd(vk::HWND::from(window.hwnd.get() as *const c_void))
                 .build();
             let surface_fn = khr::Win32Surface::new(entry, instance);
             surface_fn.create_win32_surface(&surface_desc, allocation_callbacks)

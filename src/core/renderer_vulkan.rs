@@ -1,14 +1,12 @@
 use std::collections::HashMap;
 use std::default::Default;
 use std::ffi::{c_char, c_void, CStr, CString};
-use std::ptr::addr_of_mut;
 use ash::vk;
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use crate::ash_window;
 use crate::core::event_loop::EventLoopManager;
-use crate::core::renderer_trait::{Buffer, buffer_cast, GraphicAPIBounds, RayTracingRenderer, Renderer};
+use crate::core::renderer_trait::{Buffer, buffer_cast, GraphicAPIBounds, GraphicsAbstract, RayTracingRenderer, Renderer};
 use crate::core::renderer_types::{BLASBuildData, GraphicsAPIType};
-use crate::core::scene::Mesh;
 
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct QueueInfo {
@@ -341,6 +339,8 @@ impl GraphicAPIBounds for VulkanRenderer {
     }
 }
 
+impl GraphicsAbstract for VulkanRenderer {}
+
 impl Drop for VulkanRenderer {
     fn drop(&mut self) {
         // Cleanup.
@@ -376,6 +376,6 @@ impl GraphicAPIBounds for VulkanBuffer {
 // }
 
 impl RayTracingRenderer for VulkanRenderer {
-    fn build_bottom_level_acceleration_structure(&mut self, inputs: &BLASBuildData) {
+    fn build_bottom_level_acceleration_structure(&mut self, _inputs: &BLASBuildData) {
     }
 }
