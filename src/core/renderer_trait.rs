@@ -19,11 +19,12 @@ pub trait RayTracingRenderer {
 }
 
 pub trait GraphicAPIBounds {
-    fn get_graphics_api() -> GraphicsAPIType;
+    fn get_graphics_api() -> GraphicsAPIType where Self: Sized;
 }
 
 pub trait Buffer where Self: GraphicAPIBounds {
-    fn get_buffer_name<'a>() -> &'a str;
+    fn get_buffer_name<'a>() -> &'a str where Self: Sized;
+    fn release(&mut self);
 }
 
 pub fn buffer_cast<'a, TargetType: Buffer + 'a, U: Buffer + 'a>(buffer: &mut U) -> Option<&mut TargetType> {

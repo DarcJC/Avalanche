@@ -360,6 +360,10 @@ impl Buffer for VulkanBuffer {
     fn get_buffer_name<'a>() -> &'a str {
         "Vulkan Buffer Temp Name"
     }
+
+    fn release(&mut self) {
+        todo!()
+    }
 }
 
 impl GraphicAPIBounds for VulkanBuffer {
