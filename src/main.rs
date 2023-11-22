@@ -4,18 +4,20 @@
 pub mod core;
 mod ash_window;
 
+use async_std::prelude::*;
 use ash::vk;
 use tobj::LoadOptions;
 use crate::core::event_loop::EventLoopManager;
 use crate::core::renderer_trait::{RayTracingRenderer, Renderer};
 use crate::core::renderer_types::BLASBuildData;
-use crate::core::renderer_vulkan::{VulkanBuffer, VulkanRenderer};
+use crate::core::renderer_vulkan::VulkanBuffer;
 use crate::core::scene::TObjMeshWrapper;
-use crate::core::window_manager::{WINDOW_MANAGER, WindowManager, WindowManagerTrait};
+use crate::core::window_manager::{WINDOW_MANAGER, WindowManagerTrait};
 
-fn main() {
+#[async_std::main]
+async fn main() -> std::io::Result<()> {
     let mut event_loop_manager = EventLoopManager::new();
-    let mut window_manager = WINDOW_MANAGER.lock().unwrap();
+    let mut window_manager = WINDOW_MANAGER.lock().await;
     window_manager.create_window(&mut event_loop_manager, "QwQ", 800, 600);
     window_manager.borrow_renderer_mut().initialize();
 
@@ -43,6 +45,8 @@ fn main() {
             _ => {},
         };
     });
+
+    Ok(())
 }
 
 fn test_ray_tracing(renderer: &mut (impl RayTracingRenderer + Renderer)) {

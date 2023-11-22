@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use async_std::sync::Mutex;
 use once_cell::sync::Lazy;
 use crate::core::event_loop::EventLoopManager;
 use crate::core::renderer_trait::{GraphicsAbstract, Renderer};
