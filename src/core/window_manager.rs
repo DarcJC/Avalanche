@@ -1,5 +1,8 @@
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
 use crate::core::event_loop::EventLoopManager;
 use crate::core::renderer_trait::{GraphicsAbstract, Renderer};
+use crate::core::renderer_vulkan::VulkanRenderer;
 
 pub struct WindowManager<R: Renderer> {
     renderer: R,
@@ -50,5 +53,9 @@ impl<R: GraphicsAbstract> WindowManagerTrait for WindowManager<R> {
     }
 }
 
-pub struct WindowManagerWrapper {
-}
+type RendererType = VulkanRenderer;
+
+pub static WINDOW_MANAGER: Lazy<Mutex<WindowManager<RendererType>>> = Lazy::new(|| {
+    let renderer = VulkanRenderer::new();
+    Mutex::new(WindowManager::new(renderer))
+});

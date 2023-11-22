@@ -11,17 +11,17 @@ use crate::core::renderer_trait::{RayTracingRenderer, Renderer};
 use crate::core::renderer_types::BLASBuildData;
 use crate::core::renderer_vulkan::{VulkanBuffer, VulkanRenderer};
 use crate::core::scene::TObjMeshWrapper;
-use crate::core::window_manager::{WindowManager, WindowManagerTrait};
+use crate::core::window_manager::{WINDOW_MANAGER, WindowManager, WindowManagerTrait};
 
 fn main() {
     let mut event_loop_manager = EventLoopManager::new();
-    let mut renderer = VulkanRenderer::new();
-    renderer.list_physical_devices();
-    let mut window_manager = WindowManager::new(renderer);
+    let mut window_manager = WINDOW_MANAGER.lock().unwrap();
     window_manager.create_window(&mut event_loop_manager, "QwQ", 800, 600);
     window_manager.borrow_renderer_mut().initialize();
 
-    test_ray_tracing(window_manager.borrow_renderer_mut());
+    let renderer = window_manager.borrow_renderer_mut();
+    test_ray_tracing(renderer);
+    renderer.list_physical_devices();
 
     event_loop_manager.run(move |event, target_window| {
         match event {
