@@ -1,44 +1,37 @@
-use async_std::sync::Mutex;
+use async_std::sync::{Mutex, MutexGuard};
+use async_trait::async_trait;
 use once_cell::sync::Lazy;
 use crate::core::event_loop::EventLoopManager;
 use crate::core::renderer_trait::{GraphicsAbstract, Renderer};
 use crate::core::renderer_vulkan::VulkanRenderer;
 
 pub struct WindowManager<R: Renderer> {
-    renderer: R,
+    pub renderer: Mutex<R>,
     windows: Vec<winit::window::Window>,
 }
 
+#[async_trait]
 pub trait WindowManagerTrait {
     type Renderer: GraphicsAbstract;
     fn new(renderer: Self::Renderer) -> Self;
-    fn borrow_renderer(&self) -> &Self::Renderer;
-    fn borrow_renderer_mut(&mut self) -> &mut Self::Renderer;
-    fn create_window(&mut self, event_loop: &mut EventLoopManager, title: &str, width: u32, height: u32);
+    async fn create_window(&mut self, event_loop: &mut EventLoopManager, title: &str, width: u32, height: u32);
     fn request_to_redraw_window(&mut self, window_id: winit::window::WindowId);
     fn request_redraw_all_windows(&mut self);
 }
 
-impl<R: GraphicsAbstract> WindowManagerTrait for WindowManager<R> {
+#[async_trait]
+impl<R: GraphicsAbstract + Send> WindowManagerTrait for WindowManager<R> {
     type Renderer = R;
 
     fn new(renderer: R) -> Self {
         WindowManager {
-            renderer,
+            renderer: Mutex::new(renderer),
             windows: Vec::new(),
         }
     }
 
-    fn borrow_renderer(&self) -> &R {
-        &self.renderer
-    }
-
-    fn borrow_renderer_mut(&mut self) -> &mut R {
-        &mut self.renderer
-    }
-
-    fn create_window(&mut self, event_loop: &mut EventLoopManager, title: &str, width: u32, height: u32) {
-        let window = self.renderer.create_window(event_loop, title, width, height);
+    async fn create_window(&mut self, event_loop: &mut EventLoopManager, title: &str, width: u32, height: u32) {
+        let window = self.renderer.lock().await.create_window(event_loop, title, width, height);
         self.windows.push(window);
     }
 
@@ -53,9 +46,15 @@ impl<R: GraphicsAbstract> WindowManagerTrait for WindowManager<R> {
     }
 }
 
+unsafe impl<R: Renderer> Sync for WindowManager<R> {}
+
 type RendererType = VulkanRenderer;
 
-pub static WINDOW_MANAGER: Lazy<Mutex<WindowManager<RendererType>>> = Lazy::new(|| {
+static mut WINDOW_MANAGER: Lazy<Mutex<WindowManager<RendererType>>> = Lazy::new(|| {
     let renderer = VulkanRenderer::new();
     Mutex::new(WindowManager::new(renderer))
 });
+
+pub async fn get_window_manager() -> MutexGuard<'static, WindowManager<RendererType>> {
+    unsafe { WINDOW_MANAGER.lock().await }
+}

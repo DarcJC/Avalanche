@@ -4,6 +4,7 @@
 pub mod core;
 mod ash_window;
 
+use std::ops::DerefMut;
 use async_std::prelude::*;
 use ash::vk;
 use tobj::LoadOptions;
@@ -12,20 +13,23 @@ use crate::core::renderer_trait::{RayTracingRenderer, Renderer};
 use crate::core::renderer_types::BLASBuildData;
 use crate::core::renderer_vulkan::VulkanBuffer;
 use crate::core::scene::TObjMeshWrapper;
-use crate::core::window_manager::{WINDOW_MANAGER, WindowManagerTrait};
+use crate::core::window_manager::{get_window_manager, WindowManagerTrait};
 
 #[async_std::main]
 async fn main() -> std::io::Result<()> {
     let mut event_loop_manager = EventLoopManager::new();
-    let mut window_manager = WINDOW_MANAGER.lock().await;
-    window_manager.create_window(&mut event_loop_manager, "QwQ", 800, 600);
-    window_manager.borrow_renderer_mut().initialize();
+    let mut window_manager = get_window_manager().await;
+    window_manager.create_window(&mut event_loop_manager, "QwQ", 800, 600).await;
+    window_manager.renderer.lock().await.initialize();
 
-    let renderer = window_manager.borrow_renderer_mut();
-    test_ray_tracing(renderer);
+    let mut renderer = window_manager.renderer.lock().await;
+    test_ray_tracing(renderer.deref_mut());
     renderer.list_physical_devices();
 
-    event_loop_manager.run(move |event, target_window| {
+    drop(renderer);
+    drop(window_manager);
+
+    event_loop_manager.run(|event, target_window| {
         match event {
             winit::event::Event::WindowEvent {
                 event: winit::event::WindowEvent::CloseRequested,
@@ -40,6 +44,7 @@ async fn main() -> std::io::Result<()> {
                 // call graphics api to draw
             },
             winit::event::Event::AboutToWait => {
+                let mut window_manager = async_std::task::block_on(get_window_manager());
                 window_manager.request_redraw_all_windows();
             },
             _ => {},

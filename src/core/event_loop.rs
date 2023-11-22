@@ -38,3 +38,6 @@ impl EventLoopManager {
         }
     }
 }
+
+unsafe impl Sync for EventLoopManager {}
+unsafe impl Send for EventLoopManager {}

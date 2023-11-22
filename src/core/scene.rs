@@ -76,7 +76,6 @@ impl Mesh for TObjMeshWrapper {
 impl MeshBuffers for TObjMeshWrapper {
     fn get_or_create_vertex_buffer(&mut self) -> &mut Box<dyn Buffer> {
         if self.vertex_buffer.is_none() {
-
         }
 
         self.vertex_buffer.as_mut().unwrap()
