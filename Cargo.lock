@@ -3,20 +3,6 @@
 version = 3
 
 [[package]]
-name = "Avalanche"
-version = "0.1.0"
-dependencies = [
- "ash",
- "async-std",
- "async-trait",
- "once_cell",
- "raw-window-handle 0.6.0",
- "raw-window-metal",
- "tobj",
- "winit",
-]
-
-[[package]]
 name = "ab_glyph"
 version = "0.2.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -257,6 +243,20 @@ name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
+
+[[package]]
+name = "avalanche"
+version = "0.1.0"
+dependencies = [
+ "ash",
+ "async-std",
+ "async-trait",
+ "once_cell",
+ "raw-window-handle 0.6.0",
+ "raw-window-metal",
+ "tobj",
+ "winit",
+]
 
 [[package]]
 name = "bitflags"

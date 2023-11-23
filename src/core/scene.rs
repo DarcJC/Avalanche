@@ -1,4 +1,8 @@
+use std::cell::RefCell;
+use std::sync::Arc;
+use async_trait::async_trait;
 use crate::core::renderer_trait::Buffer;
+use crate::core::window_manager::get_window_manager;
 
 pub struct RenderWorld {
     pub models: Vec<Box<dyn Mesh<NumericType=f32>>>,
@@ -26,18 +30,22 @@ pub trait Mesh {
     fn get_index_buffer_cpu(&self) -> Vec<u32>;
 }
 
+#[async_trait]
 pub trait MeshBuffers {
-    fn get_or_create_vertex_buffer(&mut self) -> &mut Box<dyn Buffer>;
-    fn get_or_create_index_buffer(&mut self) -> &mut Box<dyn Buffer>;
-    fn get_or_create_texture_coordinate_buffer(&mut self) -> &mut Box<dyn Buffer>;
+    async fn get_or_create_vertex_buffer(&mut self) -> Arc<RefCell<dyn Buffer>>;
+    async fn get_or_create_index_buffer(&mut self) -> Arc<RefCell<dyn Buffer>>;
+    async fn get_or_create_texture_coordinate_buffer(&mut self) -> Arc<RefCell<dyn Buffer>>;
 }
 
 pub struct TObjMeshWrapper {
     data: tobj::Mesh,
-    vertex_buffer: Option<Box<dyn Buffer>>,
-    index_buffer: Option<Box<dyn Buffer>>,
-    texcoord_buffer: Option<Box<dyn Buffer>>,
+    vertex_buffer: Option<Arc<RefCell<dyn Buffer>>>,
+    index_buffer: Option<Arc<RefCell<dyn Buffer>>>,
+    texcoord_buffer: Option<Arc<RefCell<dyn Buffer>>>,
 }
+
+unsafe impl Send for TObjMeshWrapper {}
+unsafe impl Sync for TObjMeshWrapper {}
 
 impl From<tobj::Mesh> for TObjMeshWrapper {
     fn from(value: tobj::Mesh) -> Self {
@@ -73,19 +81,20 @@ impl Mesh for TObjMeshWrapper {
     }
 }
 
+#[async_trait]
 impl MeshBuffers for TObjMeshWrapper {
-    fn get_or_create_vertex_buffer(&mut self) -> &mut Box<dyn Buffer> {
+    async fn get_or_create_vertex_buffer(&mut self) -> Arc<RefCell<dyn Buffer>> {
         if self.vertex_buffer.is_none() {
         }
 
-        self.vertex_buffer.as_mut().unwrap()
-    }
-
-    fn get_or_create_index_buffer(&mut self) -> &mut Box<dyn Buffer> {
         todo!()
     }
 
-    fn get_or_create_texture_coordinate_buffer(&mut self) -> &mut Box<dyn Buffer> {
+    async fn get_or_create_index_buffer(&mut self) -> Arc<RefCell<dyn Buffer>> {
+        todo!()
+    }
+
+    async fn get_or_create_texture_coordinate_buffer(&mut self) -> Arc<RefCell<dyn Buffer>> {
         todo!()
     }
 }
@@ -93,13 +102,13 @@ impl MeshBuffers for TObjMeshWrapper {
 impl Drop for TObjMeshWrapper {
     fn drop(&mut self) {
         if let Some(buffer) = &mut self.vertex_buffer {
-            buffer.release();
+            buffer.borrow_mut().release()
         }
         if let Some(buffer) = &mut self.index_buffer {
-            buffer.release();
+            buffer.borrow_mut().release()
         }
         if let Some(buffer) = &mut self.texcoord_buffer {
-            buffer.release();
+            buffer.borrow_mut().release()
         }
     }
 }
