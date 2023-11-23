@@ -54,7 +54,7 @@ fn test_ray_tracing(renderer: &mut (impl RayTracingRenderer + Renderer)) {
 
     let (model, _mat) = tobj::load_obj("C:/Users/DarcJC/Desktop/cube.obj", &LoadOptions::default()).expect("Failed to load test model.");
 
-    model.iter().for_each(|model| build_input.geometries.push(Box::new(TObjMeshWrapper::from(model.mesh.clone()))));
+    model.iter().for_each(|model| build_input.geometries.push(Box::new(TObjMeshWrapper::<VulkanBuffer>::from(model.mesh.clone()))));
 
     let mut buffer = VulkanBuffer::default();
     buffer.create_info.s_type = vk::StructureType::BUFFER_CREATE_INFO;

@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::sync::Arc;
-use async_trait::async_trait;
-use crate::core::renderer_trait::Buffer;
+use async_std::task::block_on;
+use crate::core::renderer_trait::{Buffer, Renderer};
 use crate::core::window_manager::get_window_manager;
 
 pub struct RenderWorld {
@@ -30,24 +30,23 @@ pub trait Mesh {
     fn get_index_buffer_cpu(&self) -> Vec<u32>;
 }
 
-#[async_trait]
-pub trait MeshBuffers {
-    async fn get_or_create_vertex_buffer(&mut self) -> Arc<RefCell<dyn Buffer>>;
-    async fn get_or_create_index_buffer(&mut self) -> Arc<RefCell<dyn Buffer>>;
-    async fn get_or_create_texture_coordinate_buffer(&mut self) -> Arc<RefCell<dyn Buffer>>;
+pub trait MeshBuffers<T: Buffer> {
+    fn get_or_create_vertex_buffer(&mut self) -> Arc<RefCell<T>>;
+    fn get_or_create_index_buffer(&mut self) -> Arc<RefCell<T>>;
+    fn get_or_create_texture_coordinate_buffer(&mut self) -> Arc<RefCell<T>>;
 }
 
-pub struct TObjMeshWrapper {
+pub struct TObjMeshWrapper<T: Buffer> {
     data: tobj::Mesh,
-    vertex_buffer: Option<Arc<RefCell<dyn Buffer>>>,
-    index_buffer: Option<Arc<RefCell<dyn Buffer>>>,
-    texcoord_buffer: Option<Arc<RefCell<dyn Buffer>>>,
+    vertex_buffer: Option<Arc<RefCell<T>>>,
+    index_buffer: Option<Arc<RefCell<T>>>,
+    texcoord_buffer: Option<Arc<RefCell<T>>>,
 }
 
-unsafe impl Send for TObjMeshWrapper {}
-unsafe impl Sync for TObjMeshWrapper {}
+unsafe impl<T: Buffer> Send for TObjMeshWrapper<T> {}
+unsafe impl<T: Buffer> Sync for TObjMeshWrapper<T> {}
 
-impl From<tobj::Mesh> for TObjMeshWrapper {
+impl<T: Buffer> From<tobj::Mesh> for TObjMeshWrapper<T> {
     fn from(value: tobj::Mesh) -> Self {
         Self {
             data: value,
@@ -58,7 +57,7 @@ impl From<tobj::Mesh> for TObjMeshWrapper {
     }
 }
 
-impl Mesh for TObjMeshWrapper {
+impl<T: Buffer> Mesh for TObjMeshWrapper<T> {
     fn get_primitive_type(&self) -> PrimitiveType {
         // TODO check primitive type
         PrimitiveType::Triangle
@@ -81,25 +80,32 @@ impl Mesh for TObjMeshWrapper {
     }
 }
 
-#[async_trait]
-impl MeshBuffers for TObjMeshWrapper {
-    async fn get_or_create_vertex_buffer(&mut self) -> Arc<RefCell<dyn Buffer>> {
-        if self.vertex_buffer.is_none() {
-        }
+pub fn get_or_create_buffer<T: Buffer>(buffer: &mut Option<Arc<RefCell<T>>>) -> Arc<RefCell<T>> {
+    if buffer.is_none() {
+        let manager = block_on(get_window_manager());
+        let mut renderer = block_on(manager.renderer.lock());
+        let mut new_buffer = RefCell::new(T::default());
+        renderer.create_buffer_resource(new_buffer.get_mut());
+        *buffer = Some(Arc::new(new_buffer));
+    }
+    buffer.clone().unwrap()
+}
 
-        todo!()
+impl<T: Buffer> MeshBuffers<T> for TObjMeshWrapper<T> {
+    fn get_or_create_vertex_buffer(&mut self) -> Arc<RefCell<T>> {
+        get_or_create_buffer(&mut self.vertex_buffer)
     }
 
-    async fn get_or_create_index_buffer(&mut self) -> Arc<RefCell<dyn Buffer>> {
-        todo!()
+    fn get_or_create_index_buffer(&mut self) -> Arc<RefCell<T>> {
+        get_or_create_buffer(&mut self.index_buffer)
     }
 
-    async fn get_or_create_texture_coordinate_buffer(&mut self) -> Arc<RefCell<dyn Buffer>> {
-        todo!()
+    fn get_or_create_texture_coordinate_buffer(&mut self) -> Arc<RefCell<T>> {
+        get_or_create_buffer(&mut self.texcoord_buffer)
     }
 }
 
-impl Drop for TObjMeshWrapper {
+impl<T: Buffer> Drop for TObjMeshWrapper<T> {
     fn drop(&mut self) {
         if let Some(buffer) = &mut self.vertex_buffer {
             buffer.borrow_mut().release()

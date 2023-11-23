@@ -22,7 +22,7 @@ pub trait GraphicAPIBounds {
 
 pub trait GraphicsAbstract : GraphicAPIBounds + Renderer + RayTracingRenderer {}
 
-pub trait Buffer where Self: GraphicAPIBounds {
+pub trait Buffer: Default where Self: GraphicAPIBounds {
     fn get_buffer_name<'a>() -> &'a str where Self: Sized;
     fn release(&mut self);
 }
