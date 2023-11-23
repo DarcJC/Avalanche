@@ -1,9 +1,6 @@
 use std::cell::RefCell;
 use std::sync::Arc;
-use async_std::task::block_on;
-use anyhow::Result;
-use crate::core::renderer_trait::{Buffer, Renderer};
-use crate::core::window_manager::get_window_manager;
+use crate::core::renderer_trait::{Buffer, get_or_create_buffer};
 
 pub struct RenderWorld {
     pub models: Vec<Box<dyn Mesh<NumericType=f32>>>,
@@ -79,17 +76,6 @@ impl<T: Buffer> Mesh for TObjMeshWrapper<T> {
     fn get_index_buffer_cpu(&self) -> Vec<u32> {
         self.data.indices.clone()
     }
-}
-
-pub fn get_or_create_buffer<T: Buffer>(buffer: &mut Option<Arc<RefCell<T>>>) -> Result<Arc<RefCell<T>>> {
-    if buffer.is_none() {
-        let manager = block_on(get_window_manager());
-        let mut renderer = block_on(manager.renderer.lock());
-        let mut new_buffer = RefCell::new(T::default());
-        renderer.create_buffer_resource(new_buffer.get_mut())?;
-        *buffer = Some(Arc::new(new_buffer));
-    }
-    Ok(buffer.clone().unwrap())
 }
 
 impl<T: Buffer> MeshBuffers<T> for TObjMeshWrapper<T> {
