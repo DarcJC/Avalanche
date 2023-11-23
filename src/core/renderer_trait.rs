@@ -41,6 +41,7 @@ pub trait Buffer: Default where Self: GraphicAPIBounds {
     fn get_buffer_name<'a>() -> &'a str where Self: Sized;
     fn release(&mut self);
     fn get_pending_upload_size(&self) -> u64;
+    unsafe fn fill_buffer_on_device(&mut self, src: *const c_void, size: usize) -> Result<()>;
 }
 
 pub fn buffer_cast<'a, TargetType: Buffer + 'a, U: Buffer + 'a>(buffer: &mut U) -> Option<&mut TargetType> {
@@ -51,7 +52,9 @@ pub fn buffer_cast<'a, TargetType: Buffer + 'a, U: Buffer + 'a>(buffer: &mut U) 
     }
 }
 
-pub fn get_or_create_buffer<T: Buffer>(buffer: &mut Option<Arc<RefCell<T>>>) -> Result<Arc<RefCell<T>>> {
+/// Create buffer and binding memory with size in create_info.
+pub fn get_or_create_buffer<T: Buffer>(buffer: &mut Option<Arc<RefCell<T>>>) -> Result<(Arc<RefCell<T>>, bool)> {
+    let created = buffer.is_none();
     if buffer.is_none() {
         let manager = block_on(get_window_manager());
         let mut renderer = block_on(manager.renderer.lock());
@@ -59,5 +62,5 @@ pub fn get_or_create_buffer<T: Buffer>(buffer: &mut Option<Arc<RefCell<T>>>) -> 
         renderer.create_buffer_resource(new_buffer.get_mut())?;
         *buffer = Some(Arc::new(new_buffer));
     }
-    Ok(buffer.clone().unwrap())
+    Ok((buffer.clone().unwrap(), created))
 }

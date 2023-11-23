@@ -1,4 +1,6 @@
 use std::cell::RefCell;
+use std::ffi::c_void;
+use std::ptr::addr_of;
 use std::sync::Arc;
 use crate::core::renderer_trait::{Buffer, get_or_create_buffer};
 
@@ -21,11 +23,11 @@ pub trait Mesh {
 
     fn support_index_buffer(&self) -> bool;
 
-    fn get_vertex_buffer_cpu(&self) -> Vec<Self::NumericType>;
+    fn get_vertex_buffer_cpu(&self) -> &Vec<Self::NumericType>;
 
-    fn get_texture_coordinate_cpu(&self) -> Vec<Self::NumericType>;
+    fn get_texture_coordinate_cpu(&self) -> &Vec<Self::NumericType>;
 
-    fn get_index_buffer_cpu(&self) -> Vec<u32>;
+    fn get_index_buffer_cpu(&self) -> &Vec<u32>;
 }
 
 pub trait MeshBuffers<T: Buffer> {
@@ -65,30 +67,51 @@ impl<T: Buffer> Mesh for TObjMeshWrapper<T> {
         true
     }
 
-    fn get_vertex_buffer_cpu(&self) -> Vec<Self::NumericType> {
-        self.data.positions.clone()
+    fn get_vertex_buffer_cpu(&self) -> &Vec<Self::NumericType> {
+        &self.data.positions
     }
 
-    fn get_texture_coordinate_cpu(&self) -> Vec<Self::NumericType> {
-        self.data.texcoords.clone()
+    fn get_texture_coordinate_cpu(&self) -> &Vec<Self::NumericType> {
+        &self.data.texcoords
     }
 
-    fn get_index_buffer_cpu(&self) -> Vec<u32> {
-        self.data.indices.clone()
+    fn get_index_buffer_cpu(&self) -> &Vec<u32> {
+        &self.data.indices
     }
 }
 
 impl<T: Buffer> MeshBuffers<T> for TObjMeshWrapper<T> {
     fn get_or_create_vertex_buffer(&mut self) -> Arc<RefCell<T>> {
-        get_or_create_buffer(&mut self.vertex_buffer).unwrap()
+        let (buffer, created) = get_or_create_buffer(&mut self.vertex_buffer).unwrap();
+        if created {
+            let data = self.get_vertex_buffer_cpu();
+            let data_addr = addr_of!(data) as *const c_void;
+            let data_size = data.len() * std::mem::size_of::<f32>();
+            unsafe { buffer.borrow_mut().fill_buffer_on_device(data_addr, data_size).expect("Failed to copy data to buffer."); }
+        }
+        buffer
     }
 
     fn get_or_create_index_buffer(&mut self) -> Arc<RefCell<T>> {
-        get_or_create_buffer(&mut self.index_buffer).unwrap()
+        let (buffer, created) = get_or_create_buffer(&mut self.index_buffer).unwrap();
+        if created {
+            let data = self.get_index_buffer_cpu();
+            let data_addr = addr_of!(data) as *const c_void;
+            let data_size = data.len() * std::mem::size_of::<u32>();
+            unsafe { buffer.borrow_mut().fill_buffer_on_device(data_addr, data_size).expect("Failed to copy data to buffer."); }
+        }
+        buffer
     }
 
     fn get_or_create_texture_coordinate_buffer(&mut self) -> Arc<RefCell<T>> {
-        get_or_create_buffer(&mut self.texcoord_buffer).unwrap()
+        let (buffer, created) = get_or_create_buffer(&mut self.texcoord_buffer).unwrap();
+        if created {
+            let data = self.get_texture_coordinate_cpu();
+            let data_addr = addr_of!(data) as *const c_void;
+            let data_size = data.len() * std::mem::size_of::<f32>();
+            unsafe { buffer.borrow_mut().fill_buffer_on_device(data_addr, data_size).expect("Failed to copy data to buffer."); }
+        }
+        buffer
     }
 }
 

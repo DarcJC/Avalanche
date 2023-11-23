@@ -8,7 +8,7 @@ use avalanche::core::event_loop::EventLoopManager;
 use avalanche::core::renderer_trait::{RayTracingRenderer, Renderer};
 use avalanche::core::renderer_types::BLASBuildData;
 use avalanche::core::renderer_vulkan::VulkanBuffer;
-use avalanche::core::scene::TObjMeshWrapper;
+use avalanche::core::scene::{MeshBuffers, TObjMeshWrapper};
 use avalanche::core::window_manager::{get_window_manager, WindowManagerTrait};
 
 #[async_std::main]
@@ -20,9 +20,10 @@ async fn main() -> std::io::Result<()> {
         window_manager.renderer.lock().await.initialize();
 
         let mut renderer = window_manager.renderer.lock().await;
-        test_ray_tracing(renderer.deref_mut());
         renderer.list_physical_devices();
     }
+
+    test_ray_tracing();
 
     event_loop_manager.run(|event, target_window| {
         match event {
@@ -49,21 +50,16 @@ async fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn test_ray_tracing(renderer: &mut (impl RayTracingRenderer + Renderer)) {
+fn test_ray_tracing() {
     let mut build_input = BLASBuildData::default();
 
     let (model, _mat) = tobj::load_obj("C:/Users/DarcJC/Desktop/cube.obj", &LoadOptions::default()).expect("Failed to load test model.");
 
     model.iter().for_each(|model| build_input.geometries.push(Box::new(TObjMeshWrapper::<VulkanBuffer>::from(model.mesh.clone()))));
 
-    let mut buffer = VulkanBuffer::default();
-    buffer.create_info.s_type = vk::StructureType::BUFFER_CREATE_INFO;
-    buffer.create_info.size = 32;
-    buffer.create_info.usage = vk::BufferUsageFlags::VERTEX_BUFFER;
-    buffer.create_info.sharing_mode = vk::SharingMode::EXCLUSIVE;
-    buffer.create_info.flags = vk::BufferCreateFlags::empty();
+    let mut model = TObjMeshWrapper::<VulkanBuffer>::from(model.first().unwrap().mesh.clone());
+    let vb = model.get_or_create_vertex_buffer();
+    println!("{:?}", vb);
 
-    renderer.create_buffer_resource(&mut buffer).unwrap();
-
-    renderer.build_bottom_level_acceleration_structure(&build_input);
+    // renderer.build_bottom_level_acceleration_structure(&build_input);
 }

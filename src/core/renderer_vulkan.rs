@@ -8,6 +8,7 @@ use crate::ash_window;
 use crate::core::event_loop::EventLoopManager;
 use crate::core::renderer_trait::{Buffer, buffer_cast, GraphicAPIBounds, GraphicsAbstract, RayTracingRenderer, Renderer};
 use crate::core::renderer_types::{BLASBuildData, GraphicsAPIType};
+use crate::core::window_manager::get_window_manager;
 
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct QueueInfo {
@@ -416,6 +417,16 @@ impl Buffer for VulkanBuffer {
 
     fn get_pending_upload_size(&self) -> u64 {
         self.create_info.size
+    }
+
+    unsafe fn fill_buffer_on_device(&mut self, src: *const c_void, size: usize) -> Result<()> {
+        let manager = async_std::task::block_on(get_window_manager());
+        let mut renderer = async_std::task::block_on(manager.renderer.lock());
+        let addr = renderer.map_buffer_memory(self).context("Failed to map buffer memory")?;
+
+        std::intrinsics::copy(src, addr, size);
+
+        Ok(())
     }
 }
 
