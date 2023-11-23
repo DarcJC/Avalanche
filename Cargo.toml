@@ -15,6 +15,7 @@ once_cell = "1.18.0"
 raw-window-handle = "0.6.0"
 tobj = "4.0.0"
 async-trait = "0.1.74"
+anyhow = "1.0.75"
 
 [dependencies.async-std]
 version = "1.12.0"

@@ -3,6 +3,7 @@ use std::default::Default;
 use std::ffi::{c_char, c_void, CStr, CString};
 use ash::vk;
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+use anyhow::{Result, Context};
 use crate::ash_window;
 use crate::core::event_loop::EventLoopManager;
 use crate::core::renderer_trait::{Buffer, buffer_cast, GraphicAPIBounds, GraphicsAbstract, RayTracingRenderer, Renderer};
@@ -32,8 +33,7 @@ impl Default for CompatibilityFlags {
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct VulkanAccelerationStructureState {
-}
+pub struct VulkanAccelerationStructureState {}
 
 pub struct VulkanRenderer {
     entry: ash::Entry,
@@ -80,7 +80,7 @@ impl VulkanRenderer {
         if properties.device_type == vk::PhysicalDeviceType::DISCRETE_GPU {
             result += 2;
         }
-        if !supports_graphics || !supports_compute{
+        if !supports_graphics || !supports_compute {
             result -= 4;
         }
         result
@@ -218,7 +218,7 @@ impl VulkanRenderer {
                 |prop|
                     compare_c_str_value(
                         &prop.extension_name.as_ptr(),
-                        &ash::extensions::khr::AccelerationStructure::name().as_ptr()
+                        &ash::extensions::khr::AccelerationStructure::name().as_ptr(),
                     )
             );
         self.compatibility_flags.khr_ray_tracing_pipeline = device_extensions
@@ -227,17 +227,34 @@ impl VulkanRenderer {
                 |prop|
                     compare_c_str_value(
                         &prop.extension_name.as_ptr(),
-                        &ash::extensions::khr::RayTracingPipeline::name().as_ptr()
+                        &ash::extensions::khr::RayTracingPipeline::name().as_ptr(),
                     )
             );
 
         let mut props2 = vk::PhysicalDeviceProperties2::default();
         let mut device_ray_tracing_prop = vk::PhysicalDeviceRayTracingPipelinePropertiesKHR::default();
         props2.p_next = &mut device_ray_tracing_prop as *mut _ as *mut c_void;
-        unsafe { self.instance.get_physical_device_properties2(self.physical_device.unwrap(), &mut props2) } ;
+        unsafe { self.instance.get_physical_device_properties2(self.physical_device.unwrap(), &mut props2) };
         self.compatibility_flags.rt_max_ray_recursion_depth = device_ray_tracing_prop.max_ray_recursion_depth;
 
         println!("System Compatibility: {:?}", self.compatibility_flags);
+    }
+
+    pub fn find_memory_type(&self, type_filter_bits: u32, properties: vk::MemoryPropertyFlags) -> Option<u32> {
+        let mem_prop = unsafe {
+            self.instance
+                .get_physical_device_memory_properties(
+                    self.physical_device.unwrap()
+                )
+        };
+
+        for i in 0..mem_prop.memory_type_count {
+            if (type_filter_bits & (1 << i) != 0) && mem_prop.memory_types[i as usize].property_flags.contains(properties) {
+                return Some(i);
+            }
+        }
+
+        None
     }
 }
 
@@ -325,11 +342,42 @@ impl Renderer for VulkanRenderer {
         self.compatibility_flags.khr_acceleration_structure && self.compatibility_flags.khr_ray_tracing_pipeline
     }
 
-    fn create_buffer_resource(&mut self, buffer: &mut impl Buffer) {
+    fn create_buffer_resource(&mut self, buffer: &mut impl Buffer) -> Result<()> {
         let buffer = buffer_cast::<VulkanBuffer, _>(buffer).unwrap();
-        if let Some(device) = &self.logical_device {
-            buffer.resource = Some(unsafe { device.create_buffer(&buffer.create_info, None).expect("Failed to create buffer.") });
-        }
+        let device = self.logical_device.as_ref().context("Logical device isn't created.")?;
+        buffer.resource = Some(unsafe { device.create_buffer(&buffer.create_info, None).expect("Failed to create buffer.") });
+        let memory_requirement = unsafe {
+            device.get_buffer_memory_requirements(buffer.resource.unwrap())
+        };
+        let memory_type_index = self.find_memory_type(
+            memory_requirement.memory_type_bits,
+            vk::MemoryPropertyFlags::HOST_VISIBLE //| vk::MemoryPropertyFlags::HOST_COHERENT
+        ).context("Failed to find compatible memory.")?;
+        let allocation_info = vk::MemoryAllocateInfo::builder()
+            .memory_type_index(memory_type_index)
+            .allocation_size(memory_requirement.size)
+            .build();
+        let device_memory = unsafe {
+            device.allocate_memory(&allocation_info, None)
+        }?;
+        buffer.device_memory = Some(device_memory);
+        unsafe { device.bind_buffer_memory(buffer.resource.unwrap(), device_memory, 0)?; };
+        Ok(())
+    }
+
+    fn map_buffer_memory(&mut self, buffer: &mut impl Buffer) -> Result<*mut c_void> {
+        let buffer = buffer_cast::<VulkanBuffer, _>(buffer).unwrap();
+        let buffer_memory = buffer.device_memory.context("Buffer hasn't created.")?;
+        let device = self.logical_device.as_ref().context("Logical device isn't created.")?;
+        Ok(unsafe { device.map_memory(buffer_memory, 0, buffer.create_info.size, vk::MemoryMapFlags::empty())? })
+    }
+
+    fn unmap_buffer_memory(&mut self, buffer: &mut impl Buffer) -> Result<()> {
+        let buffer = buffer_cast::<VulkanBuffer, _>(buffer).unwrap();
+        let buffer_memory = buffer.device_memory.context("Buffer hasn't created.")?;
+        let device = self.logical_device.as_ref().context("Logical device isn't created.")?;
+        unsafe { device.unmap_memory(buffer_memory); }
+        Ok(())
     }
 }
 
@@ -354,6 +402,7 @@ impl Drop for VulkanRenderer {
 pub struct VulkanBuffer {
     pub create_info: vk::BufferCreateInfo,
     resource: Option<vk::Buffer>,
+    device_memory: Option<vk::DeviceMemory>,
 }
 
 impl Buffer for VulkanBuffer {
@@ -363,6 +412,10 @@ impl Buffer for VulkanBuffer {
 
     fn release(&mut self) {
         todo!()
+    }
+
+    fn get_pending_upload_size(&self) -> u64 {
+        self.create_info.size
     }
 }
 
@@ -376,6 +429,5 @@ impl GraphicAPIBounds for VulkanBuffer {
 // }
 
 impl RayTracingRenderer for VulkanRenderer {
-    fn build_bottom_level_acceleration_structure(&mut self, _inputs: &BLASBuildData) {
-    }
+    fn build_bottom_level_acceleration_structure(&mut self, _inputs: &BLASBuildData) {}
 }

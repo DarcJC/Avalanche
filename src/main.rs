@@ -63,7 +63,7 @@ fn test_ray_tracing(renderer: &mut (impl RayTracingRenderer + Renderer)) {
     buffer.create_info.sharing_mode = vk::SharingMode::EXCLUSIVE;
     buffer.create_info.flags = vk::BufferCreateFlags::empty();
 
-    renderer.create_buffer_resource(&mut buffer);
+    renderer.create_buffer_resource(&mut buffer).unwrap();
 
     renderer.build_bottom_level_acceleration_structure(&build_input);
 }

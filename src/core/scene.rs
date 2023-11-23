@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::sync::Arc;
 use async_std::task::block_on;
+use anyhow::Result;
 use crate::core::renderer_trait::{Buffer, Renderer};
 use crate::core::window_manager::get_window_manager;
 
@@ -80,28 +81,28 @@ impl<T: Buffer> Mesh for TObjMeshWrapper<T> {
     }
 }
 
-pub fn get_or_create_buffer<T: Buffer>(buffer: &mut Option<Arc<RefCell<T>>>) -> Arc<RefCell<T>> {
+pub fn get_or_create_buffer<T: Buffer>(buffer: &mut Option<Arc<RefCell<T>>>) -> Result<Arc<RefCell<T>>> {
     if buffer.is_none() {
         let manager = block_on(get_window_manager());
         let mut renderer = block_on(manager.renderer.lock());
         let mut new_buffer = RefCell::new(T::default());
-        renderer.create_buffer_resource(new_buffer.get_mut());
+        renderer.create_buffer_resource(new_buffer.get_mut())?;
         *buffer = Some(Arc::new(new_buffer));
     }
-    buffer.clone().unwrap()
+    Ok(buffer.clone().unwrap())
 }
 
 impl<T: Buffer> MeshBuffers<T> for TObjMeshWrapper<T> {
     fn get_or_create_vertex_buffer(&mut self) -> Arc<RefCell<T>> {
-        get_or_create_buffer(&mut self.vertex_buffer)
+        get_or_create_buffer(&mut self.vertex_buffer).unwrap()
     }
 
     fn get_or_create_index_buffer(&mut self) -> Arc<RefCell<T>> {
-        get_or_create_buffer(&mut self.index_buffer)
+        get_or_create_buffer(&mut self.index_buffer).unwrap()
     }
 
     fn get_or_create_texture_coordinate_buffer(&mut self) -> Arc<RefCell<T>> {
-        get_or_create_buffer(&mut self.texcoord_buffer)
+        get_or_create_buffer(&mut self.texcoord_buffer).unwrap()
     }
 }
 
