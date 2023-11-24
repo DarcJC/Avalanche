@@ -1,12 +1,11 @@
-use std::any::Any;
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::sync::Arc;
 use enumflags2::{BitFlags};
-use crate::core::renderer_trait::{Buffer, get_or_create_buffer, GraphicsAbstract, MeshBuffers, MeshRayTracingExtension, Renderer};
+use crate::core::renderer_trait::{Buffer, get_or_create_buffer, MeshBuffers, Renderer};
 use crate::core::renderer_types::{GraphicsBufferShareModes, GraphicsBufferUsageFlags};
 use crate::core::scene::{get_or_create_buf, Mesh, PrimitiveType};
-use crate::core::window_manager::{get_window_manager, RendererType};
+use crate::core::window_manager::RendererType;
 
 pub struct TObjMeshWrapper<T: Buffer> {
     data: tobj::Mesh,

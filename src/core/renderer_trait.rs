@@ -4,11 +4,11 @@ use std::ffi::c_void;
 use std::rc::Rc;
 use std::sync::Arc;
 use anyhow::Result;
-use async_std::task::block_on;
 use enumflags2::BitFlags;
 use crate::core::event_loop::EventLoopManager;
 use crate::core::renderer_types::{BLASBuildData, GraphicsAPIType, GraphicsBufferCreationFlags, GraphicsBufferShareModes, GraphicsBufferUsageFlags};
 use crate::core::window_manager::{get_window_manager, RendererType};
+use crate::get_renderer_as_var;
 
 /// Trait for graphics API wrapping.
 ///
@@ -39,7 +39,7 @@ pub trait Renderer {
     ///
     /// This function isn't an equivalent to vkCreateBuffer,
     /// it also allocating and binding the device memory to the created buffer.
-    fn create_buffer_resource(&mut self, buffer: &mut impl Buffer) -> Result<()>;
+    fn create_buffer_resource(&self, buffer: &mut impl Buffer) -> Result<()>;
 
     /// Mapping device memory binding with buffer to host.
     fn map_buffer_memory(&self, buffer: &mut impl Buffer) -> Result<*mut c_void>;
@@ -57,7 +57,7 @@ pub trait Renderer {
 pub trait RayTracingRenderer where Self: Renderer {
     /// Creating Acceleration Structure build info like `VulkanBottomLevelAccelerationStructureBuildItem`
     fn mesh_buffers_to_geometry(&self, buffer: &mut impl MeshBuffers<Self::BufferType>) -> Result<Box<dyn Any>>;
-    fn build_bottom_level_acceleration_structure(&mut self, inputs: &BLASBuildData);
+    fn build_bottom_level_acceleration_structure(&self, inputs: &BLASBuildData);
 }
 
 /// Providing interface to indicate which graphics API is being using currently.
@@ -106,8 +106,7 @@ pub fn buffer_cast<'a, TargetType: Buffer + 'a, U: Buffer + 'a>(buffer: &mut U) 
 pub fn get_or_create_buffer<T: Buffer>(buffer: &mut Option<Arc<RefCell<T>>>, buf_desc: Rc<dyn Any>) -> Result<(Arc<RefCell<T>>, bool)> {
     let created = buffer.is_none();
     if buffer.is_none() {
-        let manager = block_on(get_window_manager());
-        let mut renderer = block_on(manager.renderer.lock());
+        get_renderer_as_var!(window_manager, renderer);
         let mut new_buffer = RefCell::new(T::default());
         new_buffer.get_mut().set_create_description(buf_desc)?;
         renderer.create_buffer_resource(new_buffer.get_mut())?;

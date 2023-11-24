@@ -5,21 +5,21 @@ use tobj::LoadOptions;
 use anyhow::Result;
 use avalanche::async_get_renderer_as_var;
 use avalanche::core::event_loop::EventLoopManager;
-use avalanche::core::renderer_trait::{MeshBuffers, RayTracingRenderer, Renderer};
+use avalanche::core::renderer_trait::{RayTracingRenderer, Renderer};
 use avalanche::core::renderer_types::BLASBuildData;
 use avalanche::core::renderer_vulkan::VulkanBuffer;
 use avalanche::core::scene::{TObjMeshWrapper};
-use avalanche::core::window_manager::{get_window_manager, WindowManagerTrait};
+use avalanche::core::window_manager::{get_window_manager, get_window_manager_mut, WindowManagerTrait};
 
 #[async_std::main]
 async fn main() -> std::io::Result<()> {
     let mut event_loop_manager = EventLoopManager::new();
     {
-        let mut window_manager = get_window_manager().await;
+        let mut window_manager = get_window_manager_mut().await;
         window_manager.create_window(&mut event_loop_manager, "QwQ", 800, 600).await;
-        window_manager.renderer.lock().await.initialize();
+        window_manager.renderer.write().await.initialize();
 
-        let renderer = window_manager.renderer.lock().await;
+        let renderer = window_manager.renderer.read().await;
         renderer.list_physical_devices();
     }
 
@@ -40,7 +40,7 @@ async fn main() -> std::io::Result<()> {
                 // call graphics api to draw
             },
             winit::event::Event::AboutToWait => {
-                let mut window_manager = async_std::task::block_on(get_window_manager());
+                let mut window_manager = async_std::task::block_on(get_window_manager_mut());
                 window_manager.request_redraw_all_windows();
             },
             _ => {},
@@ -59,7 +59,6 @@ async fn test_ray_tracing() -> Result<()> {
     async_get_renderer_as_var!(window_manager, renderer);
     let geometry = renderer.mesh_buffers_to_geometry(&mut model)?;
     build_input.geometries.push(geometry);
-
-    // renderer.build_bottom_level_acceleration_structure(&build_input);
+    renderer.build_bottom_level_acceleration_structure(&build_input);
     Ok(())
 }

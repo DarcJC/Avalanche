@@ -10,7 +10,7 @@ use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use anyhow::{Result, Context};
 use ash::vk::DeviceSize;
 use enumflags2::BitFlags;
-use crate::ash_window;
+use crate::{ash_window, get_renderer_as_var};
 use crate::core::event_loop::EventLoopManager;
 use crate::core::renderer_trait::{Buffer, buffer_cast, GraphicAPIBounds, GraphicsAbstract, MeshBuffers, RayTracingRenderer, Renderer};
 use crate::core::renderer_types::{BLASBuildData, GraphicsAPIType, GraphicsBufferCreationFlags, GraphicsBufferShareModes, GraphicsBufferUsageFlags};
@@ -360,7 +360,7 @@ impl Renderer for VulkanRenderer {
         self.compatibility_flags.khr_acceleration_structure && self.compatibility_flags.khr_ray_tracing_pipeline
     }
 
-    fn create_buffer_resource(&mut self, buffer: &mut impl Buffer) -> Result<()> {
+    fn create_buffer_resource(&self, buffer: &mut impl Buffer) -> Result<()> {
         let buffer = buffer_cast::<VulkanBuffer, _>(buffer).unwrap();
         let device = self.logical_device.as_ref().context("Logical device isn't created.")?;
         buffer.resource = Some(unsafe { device.create_buffer(&buffer.create_info, None).expect("Failed to create buffer.") });
@@ -450,8 +450,7 @@ impl Buffer for VulkanBuffer {
     }
 
     fn release(&mut self) {
-        let window_manager = async_std::task::block_on(get_window_manager());
-        let renderer = async_std::task::block_on(window_manager.renderer.lock());
+        get_renderer_as_var!(window_manager, renderer);
 
         if let Some(memory) = self.device_memory {
             unsafe {
@@ -471,8 +470,7 @@ impl Buffer for VulkanBuffer {
     }
 
     unsafe fn fill_buffer_on_device(&mut self, src: *const c_void, size: usize) -> Result<()> {
-        let manager = async_std::task::block_on(get_window_manager());
-        let mut renderer = async_std::task::block_on(manager.renderer.lock());
+        get_renderer_as_var!(window_manager, renderer);
         let addr = renderer.map_buffer_memory(self).context("Failed to map buffer memory")?;
 
         std::intrinsics::copy(src, addr, size);
@@ -547,5 +545,6 @@ impl RayTracingRenderer for VulkanRenderer {
         Ok(Box::new(VulkanBottomLevelAccelerationStructureBuildItem::new(geometry, offset)))
     }
 
-    fn build_bottom_level_acceleration_structure(&mut self, _inputs: &BLASBuildData) {}
+    fn build_bottom_level_acceleration_structure(&self, _inputs: &BLASBuildData) {
+    }
 }
