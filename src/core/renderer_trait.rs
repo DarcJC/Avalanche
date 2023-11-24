@@ -10,11 +10,25 @@ use crate::core::event_loop::EventLoopManager;
 use crate::core::renderer_types::{BLASBuildData, GraphicsAPIType, GraphicsBufferCreationFlags, GraphicsBufferShareModes, GraphicsBufferUsageFlags};
 use crate::core::window_manager::get_window_manager;
 
+/// Trait for graphics API wrapping.
+///
+/// Provide consistency between graphics APIs.
 pub trait Renderer {
+    /// Create a new wrapper.
+    ///
+    /// Instancing an entry of most the graphics APIs here.
+    ///
+    /// **Note**:
+    /// **initialize()** function must be called before invoking interfaces.
     fn new() -> Self where Self: Sized;
+    /// Creating a new window.
+    ///
+    /// Surface and Swapchain will be created and bind at the same time.
     fn create_window(&mut self, event_loop: &mut EventLoopManager, title: &str, width: u32, height: u32) -> winit::window::Window;
     fn list_physical_devices(&self);
+    /// Picking physical device and logical device.
     fn initialize(&mut self);
+    /// Check if device is supporting ray tracing.
     fn support_ray_tracing(&self) -> bool;
 
     /// Call to perform real buffer allocation on GPU.
@@ -25,23 +39,32 @@ pub trait Renderer {
     /// it also allocating and binding the device memory to the created buffer.
     fn create_buffer_resource(&mut self, buffer: &mut impl Buffer) -> Result<()>;
 
+    /// Mapping device memory binding with buffer to host.
     fn map_buffer_memory(&mut self, buffer: &mut impl Buffer) -> Result<*mut c_void>;
 
+    /// Unmapping device memory binding with buffer to host.
     fn unmap_buffer_memory(&mut self, buffer: &mut impl Buffer) -> Result<()>;
 
+    /// Create a new create info of current graphics API
     fn get_buffer_creation_info(share_modes: BitFlags<GraphicsBufferShareModes>, usage: BitFlags<GraphicsBufferUsageFlags>, flags: BitFlags<GraphicsBufferCreationFlags>, size: usize) -> Result<Rc<dyn Any>>;
 }
 
+/// Graphics API Ray Tracing extension wrapper.
+///
+/// Providing consistency interface between different graphics APIs.
 pub trait RayTracingRenderer {
     fn build_bottom_level_acceleration_structure(&mut self, inputs: &BLASBuildData);
 }
 
+/// Providing interface to indicate which graphics API is being using currently.
 pub trait GraphicAPIBounds {
     fn get_graphics_api() -> GraphicsAPIType where Self: Sized;
 }
 
+/// A full feature graphics API abstraction.
 pub trait GraphicsAbstract : GraphicAPIBounds + Renderer + RayTracingRenderer {}
 
+/// Buffer wrapper
 pub trait Buffer: Default where Self: GraphicAPIBounds {
     fn get_buffer_name<'a>() -> &'a str where Self: Sized;
     fn release(&mut self);
@@ -56,6 +79,13 @@ pub trait MeshBuffers<T: Buffer> {
     fn get_or_create_texture_coordinate_buffer(&mut self) -> Arc<RefCell<T>>;
 }
 
+pub trait MeshRayTracingExtension<T: Buffer> {
+    fn create_rt_geometry() -> dyn Any;
+}
+
+/// Casting generic buffer to API specified buffer.
+///
+/// **None** will be returned if API bounds checking isn't passing.
 pub fn buffer_cast<'a, TargetType: Buffer + 'a, U: Buffer + 'a>(buffer: &mut U) -> Option<&mut TargetType> {
     if TargetType::get_graphics_api() == U::get_graphics_api() {
         Some(unsafe { std::mem::transmute(buffer) })
