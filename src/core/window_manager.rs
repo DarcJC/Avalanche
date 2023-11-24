@@ -58,3 +58,19 @@ static mut WINDOW_MANAGER: Lazy<Mutex<WindowManager<RendererType>>> = Lazy::new(
 pub async fn get_window_manager() -> MutexGuard<'static, WindowManager<RendererType>> {
     unsafe { WINDOW_MANAGER.lock().await }
 }
+
+#[macro_export]
+macro_rules! async_get_renderer_as_var {
+    ($window_manager_name:ident, $var_name:ident) => {
+        let $window_manager_name = get_window_manager().await;
+        let mut $var_name = $window_manager_name.renderer.lock().await;
+    };
+}
+
+#[macro_export]
+macro_rules! get_renderer_as_var {
+    ($window_manager_name:ident, $var_name:ident) => {
+        let $window_manager_name = async_std::task::block_on(get_window_manager());
+        let mut $var_name = async_std::task::block_on($window_manager_name.renderer.lock());
+    };
+}

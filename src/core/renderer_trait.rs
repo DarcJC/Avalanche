@@ -8,12 +8,14 @@ use async_std::task::block_on;
 use enumflags2::BitFlags;
 use crate::core::event_loop::EventLoopManager;
 use crate::core::renderer_types::{BLASBuildData, GraphicsAPIType, GraphicsBufferCreationFlags, GraphicsBufferShareModes, GraphicsBufferUsageFlags};
-use crate::core::window_manager::get_window_manager;
+use crate::core::window_manager::{get_window_manager, RendererType};
 
 /// Trait for graphics API wrapping.
 ///
 /// Provide consistency between graphics APIs.
 pub trait Renderer {
+    type BufferType: Buffer;
+
     /// Create a new wrapper.
     ///
     /// Instancing an entry of most the graphics APIs here.
@@ -40,10 +42,10 @@ pub trait Renderer {
     fn create_buffer_resource(&mut self, buffer: &mut impl Buffer) -> Result<()>;
 
     /// Mapping device memory binding with buffer to host.
-    fn map_buffer_memory(&mut self, buffer: &mut impl Buffer) -> Result<*mut c_void>;
+    fn map_buffer_memory(&self, buffer: &mut impl Buffer) -> Result<*mut c_void>;
 
     /// Unmapping device memory binding with buffer to host.
-    fn unmap_buffer_memory(&mut self, buffer: &mut impl Buffer) -> Result<()>;
+    fn unmap_buffer_memory(&self, buffer: &mut impl Buffer) -> Result<()>;
 
     /// Create a new create info of current graphics API
     fn get_buffer_creation_info(share_modes: BitFlags<GraphicsBufferShareModes>, usage: BitFlags<GraphicsBufferUsageFlags>, flags: BitFlags<GraphicsBufferCreationFlags>, size: usize) -> Result<Rc<dyn Any>>;
@@ -52,7 +54,9 @@ pub trait Renderer {
 /// Graphics API Ray Tracing extension wrapper.
 ///
 /// Providing consistency interface between different graphics APIs.
-pub trait RayTracingRenderer {
+pub trait RayTracingRenderer where Self: Renderer {
+    /// Creating Acceleration Structure build info like `VulkanBottomLevelAccelerationStructureBuildItem`
+    fn mesh_buffers_to_geometry(&self, buffer: &mut impl MeshBuffers<Self::BufferType>) -> Result<Box<dyn Any>>;
     fn build_bottom_level_acceleration_structure(&mut self, inputs: &BLASBuildData);
 }
 
@@ -77,10 +81,14 @@ pub trait MeshBuffers<T: Buffer> {
     fn get_or_create_vertex_buffer(&mut self) -> Arc<RefCell<T>>;
     fn get_or_create_index_buffer(&mut self) -> Arc<RefCell<T>>;
     fn get_or_create_texture_coordinate_buffer(&mut self) -> Arc<RefCell<T>>;
+
+    fn get_primitive_count(&self) -> usize;
+    fn get_vertex_count(&self) -> usize;
 }
 
-pub trait MeshRayTracingExtension<T: Buffer> {
-    fn create_rt_geometry() -> dyn Any;
+pub trait MeshRayTracingExtension {
+    type APIType: GraphicsAbstract = RendererType;
+    fn create_rt_geometry(&mut self) -> Result<Box<dyn Any>>;
 }
 
 /// Casting generic buffer to API specified buffer.

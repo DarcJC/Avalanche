@@ -1,9 +1,9 @@
+use std::any::Any;
 use enumflags2::bitflags;
-use crate::core::scene::Mesh;
 
 /// Bottom Level Acceleration Structure Build Data
 pub struct BLASBuildData {
-    pub geometries: Vec<Box<dyn Mesh<NumericType=f32>>>,
+    pub geometries: Vec<Box<dyn Any>>,
 }
 
 impl Default for BLASBuildData {

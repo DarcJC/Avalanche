@@ -2,8 +2,10 @@
 #![feature(slice_flatten)]
 
 use tobj::LoadOptions;
+use anyhow::Result;
+use avalanche::async_get_renderer_as_var;
 use avalanche::core::event_loop::EventLoopManager;
-use avalanche::core::renderer_trait::{MeshBuffers, Renderer};
+use avalanche::core::renderer_trait::{MeshBuffers, RayTracingRenderer, Renderer};
 use avalanche::core::renderer_types::BLASBuildData;
 use avalanche::core::renderer_vulkan::VulkanBuffer;
 use avalanche::core::scene::{TObjMeshWrapper};
@@ -21,7 +23,7 @@ async fn main() -> std::io::Result<()> {
         renderer.list_physical_devices();
     }
 
-    test_ray_tracing();
+    test_ray_tracing().await.unwrap();
 
     event_loop_manager.run(|event, target_window| {
         match event {
@@ -48,16 +50,16 @@ async fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn test_ray_tracing() {
+async fn test_ray_tracing() -> Result<()> {
     let mut build_input = BLASBuildData::default();
 
     let (model, _mat) = tobj::load_obj("C:/Users/DarcJC/Desktop/cube.obj", &LoadOptions::default()).expect("Failed to load test model.");
 
-    model.iter().for_each(|model| build_input.geometries.push(Box::new(TObjMeshWrapper::<VulkanBuffer>::from(model.mesh.clone()))));
-
     let mut model = TObjMeshWrapper::<VulkanBuffer>::from(model.first().unwrap().mesh.clone());
-    let vb = model.get_or_create_vertex_buffer();
-    println!("{:?}", vb);
+    async_get_renderer_as_var!(window_manager, renderer);
+    let geometry = renderer.mesh_buffers_to_geometry(&mut model)?;
+    build_input.geometries.push(geometry);
 
     // renderer.build_bottom_level_acceleration_structure(&build_input);
+    Ok(())
 }
