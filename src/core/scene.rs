@@ -82,54 +82,30 @@ impl<T: Buffer> Mesh for TObjMeshWrapper<T> {
     }
 }
 
+macro_rules! get_or_create_buf {
+    ($func_name:ident, $get_cpu_func:ident, $buf:ident, $type:ty, $buffer_usage:expr) => {
+        fn $func_name(&mut self) -> Arc<RefCell<T>> {
+            let (buffer, created) = {
+                let data = self.$get_cpu_func();
+                let data_size = data.len() * std::mem::size_of::<$type>();
+                let create_info = RendererType::get_buffer_creation_info(BitFlags::from(GraphicsBufferShareModes::Exclusive), BitFlags::from($buffer_usage), BitFlags::empty(), data_size).unwrap();
+                get_or_create_buffer(&mut self.$buf, create_info).unwrap()
+            };
+            if created {
+                let data = self.$get_cpu_func();
+                let data_size = data.len() * std::mem::size_of::<$type>();
+                let data_addr = data.as_ptr() as *const c_void;
+                unsafe { buffer.borrow_mut().fill_buffer_on_device(data_addr, data_size).expect("Failed to copy data to buffer."); }
+            }
+            buffer
+        }
+    };
+}
+
 impl<T: Buffer> MeshBuffers<T> for TObjMeshWrapper<T> {
-    fn get_or_create_vertex_buffer(&mut self) -> Arc<RefCell<T>> {
-        let (buffer, created) = {
-            let data = self.get_vertex_buffer_cpu();
-            let data_size = data.len() * std::mem::size_of::<f32>();
-            let create_info = RendererType::get_buffer_creation_info(BitFlags::from(GraphicsBufferShareModes::Exclusive), BitFlags::from(GraphicsBufferUsageFlags::VertexBuffer), BitFlags::empty(), data_size).unwrap();
-            get_or_create_buffer(&mut self.vertex_buffer, create_info).unwrap()
-        };
-        if created {
-            let data = self.get_vertex_buffer_cpu();
-            let data_size = data.len() * std::mem::size_of::<f32>();
-            let data_addr = data.as_ptr() as *const c_void;
-            unsafe { buffer.borrow_mut().fill_buffer_on_device(data_addr, data_size).expect("Failed to copy data to buffer."); }
-        }
-        buffer
-    }
-
-    fn get_or_create_index_buffer(&mut self) -> Arc<RefCell<T>> {
-        let (buffer, created) = {
-            let data = self.get_index_buffer_cpu();
-            let data_size = data.len() * std::mem::size_of::<u32>();
-            let create_info = RendererType::get_buffer_creation_info(BitFlags::from(GraphicsBufferShareModes::Exclusive), BitFlags::from(GraphicsBufferUsageFlags::IndexBuffer), BitFlags::empty(), data_size).unwrap();
-            get_or_create_buffer(&mut self.index_buffer, create_info).unwrap()
-        };
-        if created {
-            let data = self.get_index_buffer_cpu();
-            let data_size = data.len() * std::mem::size_of::<u32>();
-            let data_addr = data.as_ptr() as *const c_void;
-            unsafe { buffer.borrow_mut().fill_buffer_on_device(data_addr, data_size).expect("Failed to copy data to buffer."); }
-        }
-        buffer
-    }
-
-    fn get_or_create_texture_coordinate_buffer(&mut self) -> Arc<RefCell<T>> {
-        let (buffer, created) = {
-            let data = self.get_texture_coordinate_cpu();
-            let data_size = data.len() * std::mem::size_of::<f32>();
-            let create_info = RendererType::get_buffer_creation_info(BitFlags::from(GraphicsBufferShareModes::Exclusive), BitFlags::empty(), BitFlags::empty(), data_size).unwrap();
-            get_or_create_buffer(&mut self.texcoord_buffer, create_info).unwrap()
-        };
-        if created {
-            let data = self.get_texture_coordinate_cpu();
-            let data_size = data.len() * std::mem::size_of::<f32>();
-            let data_addr = data.as_ptr() as *const c_void;
-            unsafe { buffer.borrow_mut().fill_buffer_on_device(data_addr, data_size).expect("Failed to copy data to buffer."); }
-        }
-        buffer
-    }
+    get_or_create_buf!(get_or_create_vertex_buffer, get_vertex_buffer_cpu, vertex_buffer, f32, GraphicsBufferUsageFlags::VertexBuffer);
+    get_or_create_buf!(get_or_create_index_buffer, get_index_buffer_cpu, index_buffer, u32, GraphicsBufferUsageFlags::IndexBuffer);
+    get_or_create_buf!(get_or_create_texture_coordinate_buffer, get_texture_coordinate_cpu, texcoord_buffer, f32, GraphicsBufferUsageFlags::VertexBuffer);
 }
 
 impl<T: Buffer> Drop for TObjMeshWrapper<T> {
