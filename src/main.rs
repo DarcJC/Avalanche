@@ -3,10 +3,10 @@
 
 use tobj::LoadOptions;
 use avalanche::core::event_loop::EventLoopManager;
-use avalanche::core::renderer_trait::Renderer;
+use avalanche::core::renderer_trait::{MeshBuffers, Renderer};
 use avalanche::core::renderer_types::BLASBuildData;
 use avalanche::core::renderer_vulkan::VulkanBuffer;
-use avalanche::core::scene::{MeshBuffers, TObjMeshWrapper};
+use avalanche::core::scene::{TObjMeshWrapper};
 use avalanche::core::window_manager::{get_window_manager, WindowManagerTrait};
 
 #[async_std::main]

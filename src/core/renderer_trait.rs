@@ -50,6 +50,12 @@ pub trait Buffer: Default where Self: GraphicAPIBounds {
     fn set_create_description(&mut self, desc: Rc<dyn Any>) -> Result<()>;
 }
 
+pub trait MeshBuffers<T: Buffer> {
+    fn get_or_create_vertex_buffer(&mut self) -> Arc<RefCell<T>>;
+    fn get_or_create_index_buffer(&mut self) -> Arc<RefCell<T>>;
+    fn get_or_create_texture_coordinate_buffer(&mut self) -> Arc<RefCell<T>>;
+}
+
 pub fn buffer_cast<'a, TargetType: Buffer + 'a, U: Buffer + 'a>(buffer: &mut U) -> Option<&mut TargetType> {
     if TargetType::get_graphics_api() == U::get_graphics_api() {
         Some(unsafe { std::mem::transmute(buffer) })
