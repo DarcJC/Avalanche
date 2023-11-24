@@ -48,7 +48,7 @@ impl<R: GraphicsAbstract + Send> WindowManagerTrait for WindowManager<R> {
 
 unsafe impl<R: Renderer> Sync for WindowManager<R> {}
 
-type RendererType = VulkanRenderer;
+pub type RendererType = VulkanRenderer;
 
 static mut WINDOW_MANAGER: Lazy<Mutex<WindowManager<RendererType>>> = Lazy::new(|| {
     let renderer = VulkanRenderer::new();

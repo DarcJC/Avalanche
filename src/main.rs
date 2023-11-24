@@ -1,11 +1,9 @@
 #![feature(associated_type_defaults)]
 #![feature(slice_flatten)]
 
-use std::ops::DerefMut;
-use ash::vk;
 use tobj::LoadOptions;
 use avalanche::core::event_loop::EventLoopManager;
-use avalanche::core::renderer_trait::{RayTracingRenderer, Renderer};
+use avalanche::core::renderer_trait::Renderer;
 use avalanche::core::renderer_types::BLASBuildData;
 use avalanche::core::renderer_vulkan::VulkanBuffer;
 use avalanche::core::scene::{MeshBuffers, TObjMeshWrapper};
@@ -19,7 +17,7 @@ async fn main() -> std::io::Result<()> {
         window_manager.create_window(&mut event_loop_manager, "QwQ", 800, 600).await;
         window_manager.renderer.lock().await.initialize();
 
-        let mut renderer = window_manager.renderer.lock().await;
+        let renderer = window_manager.renderer.lock().await;
         renderer.list_physical_devices();
     }
 

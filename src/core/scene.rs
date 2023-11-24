@@ -1,8 +1,10 @@
 use std::cell::RefCell;
 use std::ffi::c_void;
-use std::ptr::addr_of;
 use std::sync::Arc;
-use crate::core::renderer_trait::{Buffer, get_or_create_buffer};
+use enumflags2::{BitFlags};
+use crate::core::renderer_trait::{Buffer, get_or_create_buffer, Renderer};
+use crate::core::renderer_types::{GraphicsBufferShareModes, GraphicsBufferUsageFlags};
+use crate::core::window_manager::RendererType;
 
 pub struct RenderWorld {
     pub models: Vec<Box<dyn Mesh<NumericType=f32>>>,
@@ -82,33 +84,48 @@ impl<T: Buffer> Mesh for TObjMeshWrapper<T> {
 
 impl<T: Buffer> MeshBuffers<T> for TObjMeshWrapper<T> {
     fn get_or_create_vertex_buffer(&mut self) -> Arc<RefCell<T>> {
-        let (buffer, created) = get_or_create_buffer(&mut self.vertex_buffer).unwrap();
+        let (buffer, created) = {
+            let data = self.get_vertex_buffer_cpu();
+            let data_size = data.len() * std::mem::size_of::<f32>();
+            let create_info = RendererType::get_buffer_creation_info(BitFlags::from(GraphicsBufferShareModes::Exclusive), BitFlags::from(GraphicsBufferUsageFlags::VertexBuffer), BitFlags::empty(), data_size).unwrap();
+            get_or_create_buffer(&mut self.vertex_buffer, create_info).unwrap()
+        };
         if created {
             let data = self.get_vertex_buffer_cpu();
-            let data_addr = addr_of!(data) as *const c_void;
             let data_size = data.len() * std::mem::size_of::<f32>();
+            let data_addr = data.as_ptr() as *const c_void;
             unsafe { buffer.borrow_mut().fill_buffer_on_device(data_addr, data_size).expect("Failed to copy data to buffer."); }
         }
         buffer
     }
 
     fn get_or_create_index_buffer(&mut self) -> Arc<RefCell<T>> {
-        let (buffer, created) = get_or_create_buffer(&mut self.index_buffer).unwrap();
+        let (buffer, created) = {
+            let data = self.get_index_buffer_cpu();
+            let data_size = data.len() * std::mem::size_of::<u32>();
+            let create_info = RendererType::get_buffer_creation_info(BitFlags::from(GraphicsBufferShareModes::Exclusive), BitFlags::from(GraphicsBufferUsageFlags::IndexBuffer), BitFlags::empty(), data_size).unwrap();
+            get_or_create_buffer(&mut self.index_buffer, create_info).unwrap()
+        };
         if created {
             let data = self.get_index_buffer_cpu();
-            let data_addr = addr_of!(data) as *const c_void;
             let data_size = data.len() * std::mem::size_of::<u32>();
+            let data_addr = data.as_ptr() as *const c_void;
             unsafe { buffer.borrow_mut().fill_buffer_on_device(data_addr, data_size).expect("Failed to copy data to buffer."); }
         }
         buffer
     }
 
     fn get_or_create_texture_coordinate_buffer(&mut self) -> Arc<RefCell<T>> {
-        let (buffer, created) = get_or_create_buffer(&mut self.texcoord_buffer).unwrap();
+        let (buffer, created) = {
+            let data = self.get_texture_coordinate_cpu();
+            let data_size = data.len() * std::mem::size_of::<f32>();
+            let create_info = RendererType::get_buffer_creation_info(BitFlags::from(GraphicsBufferShareModes::Exclusive), BitFlags::empty(), BitFlags::empty(), data_size).unwrap();
+            get_or_create_buffer(&mut self.texcoord_buffer, create_info).unwrap()
+        };
         if created {
             let data = self.get_texture_coordinate_cpu();
-            let data_addr = addr_of!(data) as *const c_void;
             let data_size = data.len() * std::mem::size_of::<f32>();
+            let data_addr = data.as_ptr() as *const c_void;
             unsafe { buffer.borrow_mut().fill_buffer_on_device(data_addr, data_size).expect("Failed to copy data to buffer."); }
         }
         buffer

@@ -1,13 +1,17 @@
+use std::any::Any;
 use std::collections::HashMap;
 use std::default::Default;
 use std::ffi::{c_char, c_void, CStr, CString};
+use std::rc::Rc;
 use ash::vk;
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use anyhow::{Result, Context};
+use ash::vk::DeviceSize;
+use enumflags2::BitFlags;
 use crate::ash_window;
 use crate::core::event_loop::EventLoopManager;
 use crate::core::renderer_trait::{Buffer, buffer_cast, GraphicAPIBounds, GraphicsAbstract, RayTracingRenderer, Renderer};
-use crate::core::renderer_types::{BLASBuildData, GraphicsAPIType};
+use crate::core::renderer_types::{BLASBuildData, GraphicsAPIType, GraphicsBufferCreationFlags, GraphicsBufferShareModes, GraphicsBufferUsageFlags};
 use crate::core::window_manager::get_window_manager;
 
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
@@ -380,6 +384,27 @@ impl Renderer for VulkanRenderer {
         unsafe { device.unmap_memory(buffer_memory); }
         Ok(())
     }
+
+    fn get_buffer_creation_info(share_modes: BitFlags<GraphicsBufferShareModes>, usage: BitFlags<GraphicsBufferUsageFlags>, _flags: BitFlags<GraphicsBufferCreationFlags>, size: usize) -> Result<Rc<dyn Any>> {
+        let mut info = vk::BufferCreateInfo::default();
+
+        if share_modes.contains(GraphicsBufferShareModes::Concurrent) {
+            info.sharing_mode = vk::SharingMode::CONCURRENT;
+        } else {
+            info.sharing_mode = vk::SharingMode::EXCLUSIVE;
+        }
+
+        if usage.contains(GraphicsBufferUsageFlags::VertexBuffer) {
+            info.usage |= vk::BufferUsageFlags::VERTEX_BUFFER;
+        }
+        if usage.contains(GraphicsBufferUsageFlags::IndexBuffer) {
+            info.usage |= vk::BufferUsageFlags::INDEX_BUFFER;
+        }
+
+        info.size = size as DeviceSize;
+
+        Ok(Rc::new(info))
+    }
 }
 
 impl GraphicAPIBounds for VulkanRenderer {
@@ -412,7 +437,20 @@ impl Buffer for VulkanBuffer {
     }
 
     fn release(&mut self) {
-        todo!()
+        let window_manager = async_std::task::block_on(get_window_manager());
+        let renderer = async_std::task::block_on(window_manager.renderer.lock());
+
+        if let Some(memory) = self.device_memory {
+            unsafe {
+                renderer.logical_device.as_ref().unwrap().free_memory(memory, None);
+            }
+        }
+
+        if let Some(handle) = self.resource {
+            unsafe {
+                renderer.logical_device.as_ref().unwrap().destroy_buffer(handle, None);
+            }
+        }
     }
 
     fn get_pending_upload_size(&self) -> u64 {
@@ -426,6 +464,12 @@ impl Buffer for VulkanBuffer {
 
         std::intrinsics::copy(src, addr, size);
 
+        Ok(())
+    }
+
+    fn set_create_description(&mut self, desc: Rc<dyn Any>) -> Result<()> {
+        let desc = desc.downcast_ref::<vk::BufferCreateInfo>().context("Passing bad argument to set_create_description.")?;
+        self.create_info = *desc;
         Ok(())
     }
 }
