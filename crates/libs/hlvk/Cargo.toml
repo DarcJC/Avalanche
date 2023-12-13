@@ -1,0 +1,11 @@
+[package]
+name = "avalanche-hlvk"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+log.workspace = true
+anyhow.workspace = true
+ash.workspace = true
+
