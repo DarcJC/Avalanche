@@ -11,6 +11,19 @@ use avalanche_utils::IdGenerator32;
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct WindowHandle(u32);
 
+#[derive(Copy, Clone, Debug)]
+pub struct WindowState {
+    pub(crate) is_surface_dirty: bool,
+}
+
+impl Default for WindowState {
+    fn default() -> Self {
+        Self {
+            is_surface_dirty: true,
+        }
+    }
+}
+
 impl WindowHandle {
     pub fn none() -> Self {
         Self(IdGenerator32::none())
@@ -26,6 +39,7 @@ pub(crate) type EventLoopType = EventLoop<()>;
 pub struct WindowManager {
     pub(crate) event_loop: EventLoopType,
     pub(crate) windows: HashMap<WindowHandle, Arc<Window>>,
+    pub(crate) window_states: HashMap<WindowHandle, Arc<WindowState>>,
     pub(crate) id_generator: IdGenerator32,
     pub(crate) main_window_id: WindowHandle,
 }
@@ -39,9 +53,18 @@ fn window_event_handler(event: Event<()>, target: &EventLoopWindowTarget<()>) {
             event: WindowEvent::CloseRequested,
             window_id,
         } if WindowManager::notify_window_to_exit(window_id) => target.exit(),
-        Event::AboutToWait => {
+
+        Event::WindowEvent {
+            event: WindowEvent::Resized(..),
+            window_id: _window_id,
+        } => {
+            // TODO: notify window size changed
         }
-        _ => ()
+
+        Event::AboutToWait => {
+        },
+
+        _ => (),
     }
 }
 
@@ -52,6 +75,7 @@ impl WindowManager {
             .build(&self.event_loop)?;
         let new_id = WindowHandle(self.id_generator.next_id());
         self.windows.insert(new_id, Arc::new(window));
+        self.window_states.insert(new_id, Arc::new(WindowState::default()));
         Ok(new_id)
     }
 
@@ -66,7 +90,7 @@ impl WindowManager {
     pub fn handle_events(&mut self) {
         let status = self.event_loop.pump_events(Some(Duration::from_secs_f64(0.33)), window_event_handler);
         if let PumpStatus::Exit(_exit_code) = status {
-            todo!("Notify to exit.")
+            panic!("Window event loop exited.");
         }
     }
 

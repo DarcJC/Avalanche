@@ -9,3 +9,4 @@ authors.workspace = true
 [dependencies]
 async-std.workspace = true
 avalanche-window.workspace = true
+avalanche-engine.workspace = true

@@ -11,6 +11,7 @@ fn create_window_manager() -> RwLock<WindowManager> {
     RwLock::new(WindowManager {
         event_loop: EventLoopType::new().unwrap(),
         windows: HashMap::new(),
+        window_states: HashMap::new(),
         id_generator: IdGenerator32::new(),
         main_window_id: WindowHandle::none(),
     })
@@ -40,5 +41,8 @@ impl WindowManager {
         } else {
             true
         }
+    }
+
+    pub fn notify_window_resized(_window_id: WindowId) {
     }
 }

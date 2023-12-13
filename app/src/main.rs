@@ -1,12 +1,9 @@
-use avalanche_window::get_window_manager_mut;
+use avalanche_engine::core::instance::EngineInstance;
 
 #[async_std::main]
 async fn main() -> std::io::Result<()> {
-    let _ = get_window_manager_mut().await.create_main_window();
-
-    loop {
-        get_window_manager_mut().await.handle_events();
-    }
+    let mut instance = EngineInstance::default();
+    instance.run();
 
     Ok(())
 }
