@@ -11,6 +11,7 @@ mod barrier;
 mod image;
 mod sampler;
 mod query;
+mod buffer;
 
 pub use instance::*;
 pub use util::*;
@@ -23,3 +24,4 @@ pub use barrier::*;
 pub use image::*;
 pub use sampler::*;
 pub use query::*;
+pub use buffer::*;
