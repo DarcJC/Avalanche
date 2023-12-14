@@ -16,3 +16,4 @@ bevy_app.workspace = true
 bevy_core.workspace = true
 bevy_time.workspace = true
 avalanche-window.workspace = true
+chrono.workspace = true

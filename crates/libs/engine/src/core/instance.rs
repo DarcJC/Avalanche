@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 use bevy_app::{App, AppExit};
 use bevy_ecs::prelude::AppTypeRegistry;
-use crate::core::task::{MainTaskPluginGroup, MinimalPlugins};
+use crate::core::task::{MainTaskPluginGroup, SchedulerMinimalPlugins};
 
 static INSTANCE_EXIT_FLAG: Mutex<bool> = Mutex::new(false);
 
@@ -13,7 +13,7 @@ impl Default for EngineInstance {
     fn default() -> Self {
         let mut app = App::empty();
         app.init_resource::<AppTypeRegistry>();
-        app.add_plugins(MinimalPlugins);
+        app.add_plugins(SchedulerMinimalPlugins);
         app.add_event::<AppExit>();
         app.add_plugins(MainTaskPluginGroup);
         Self {
