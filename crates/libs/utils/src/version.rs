@@ -7,6 +7,8 @@ pub const VERSION_1_3: Version = Version::from_major_minor(1, 3);
 
 pub const CURRENT_APPLICATION_VERSION: Version = Version::new(0, parse_unwarp(env!("CARGO_PKG_VERSION_MAJOR")) as u32, parse_unwarp(env!("CARGO_PKG_VERSION_MINOR")) as u32, parse_unwarp(env!("CARGO_PKG_VERSION_PATCH")) as u32);
 
+pub const CURRENT_APPLICATION_NAME: &str = "AvalancheEngine";
+
 #[derive(Debug, Clone, Copy)]
 pub struct Version {
     pub variant: u32,
