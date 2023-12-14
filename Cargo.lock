@@ -329,7 +329,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "ash",
+ "avalanche-utils",
  "log",
+ "raw-window-handle",
 ]
 
 [[package]]
