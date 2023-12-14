@@ -1,10 +1,10 @@
 use std::ffi::{c_void, CStr, CString};
 use ash::extensions::ext::DebugUtils;
 use ash::{Entry, Instance as AshInstance, vk};
-use ash::vk::PhysicalDevice;
 use log::{debug, error, info, warn};
 use raw_window_handle::HasDisplayHandle;
 use avalanche_utils::{CURRENT_APPLICATION_NAME, CURRENT_APPLICATION_VERSION, Version};
+use crate::{PhysicalDevice, Surface};
 use crate::util::IntoAshVersion;
 
 #[derive(Clone)]
@@ -16,12 +16,14 @@ pub struct Instance {
 }
 
 impl Instance {
-    pub(crate) fn new(entry: &Entry, display_handle: &dyn HasDisplayHandle, api_version: Version) -> anyhow::Result<Self> {
-        let app_name = CString::new(CURRENT_APPLICATION_NAME)?;
+    pub(crate) fn new(entry: &Entry, display_handle: &dyn HasDisplayHandle, api_version: Version, app_name: &str) -> anyhow::Result<Self> {
+        let engine_name = CString::new(CURRENT_APPLICATION_NAME)?;
+        let app_name = CString::new(app_name)?;
 
         let app_info = vk::ApplicationInfo::builder()
             .api_version(api_version.into_version())
-            .application_version(CURRENT_APPLICATION_VERSION.into_version())
+            .engine_version(CURRENT_APPLICATION_VERSION.into_version())
+            .engine_name(engine_name.as_c_str())
             .application_name(app_name.as_c_str())
             .build();
 
@@ -74,6 +76,30 @@ impl Instance {
                 physical_devices: vec![],
             }
         })
+    }
+
+    pub(crate) fn enumerate_physical_devices(
+        &mut self,
+        surface: &Surface,
+    ) -> anyhow::Result<&[PhysicalDevice]> {
+        if self.physical_devices.is_empty() {
+            let physical_devices = unsafe { self.inner.enumerate_physical_devices()? };
+
+            let mut physical_devices = physical_devices
+                .into_iter()
+                .map(|physical_device| PhysicalDevice::new(&self.inner, surface, physical_device))
+                .collect::<anyhow::Result<Vec<_>>>()?;
+
+            physical_devices.sort_by_key(|physical_device| match physical_device.device_type {
+                vk::PhysicalDeviceType::DISCRETE_GPU => 0,
+                vk::PhysicalDeviceType::INTEGRATED_GPU => 1,
+                _ => 2,
+            });
+
+            self.physical_devices = physical_devices;
+        }
+
+        Ok(&self.physical_devices)
     }
 }
 
