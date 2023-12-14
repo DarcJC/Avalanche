@@ -13,6 +13,7 @@ mod sampler;
 mod query;
 mod buffer;
 mod descriptor;
+mod command;
 
 pub use instance::*;
 pub use util::*;
@@ -27,3 +28,4 @@ pub use sampler::*;
 pub use query::*;
 pub use buffer::*;
 pub use descriptor::*;
+pub use command::*;

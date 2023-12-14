@@ -99,7 +99,7 @@ impl DescriptorSet {
         // these Vec are here to keep structure internal to WriteDescriptorSet (DescriptorImageInfo, DescriptorBufferInfo, ...) alive
         let mut img_infos = vec![];
         let mut buffer_infos = vec![];
-        let mut as_infos = vec![];
+        // let mut as_infos = vec![];
 
         let descriptor_writes = writes
             .iter()
