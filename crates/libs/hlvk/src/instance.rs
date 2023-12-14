@@ -7,7 +7,6 @@ use avalanche_utils::{CURRENT_APPLICATION_NAME, CURRENT_APPLICATION_VERSION, Ver
 use crate::{PhysicalDevice, Surface};
 use crate::util::IntoAshVersion;
 
-#[derive(Clone)]
 pub struct Instance {
     pub(crate) inner: AshInstance,
     debug_utils: Option<DebugUtils>,

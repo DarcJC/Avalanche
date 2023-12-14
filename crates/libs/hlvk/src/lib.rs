@@ -8,6 +8,7 @@ mod physical_device;
 mod queue;
 mod surface;
 mod barrier;
+mod image;
 
 pub use instance::*;
 pub use util::*;
@@ -17,3 +18,4 @@ pub use physical_device::*;
 pub use queue::*;
 pub use surface::*;
 pub use barrier::*;
+pub use image::*;

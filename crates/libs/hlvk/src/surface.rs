@@ -3,7 +3,6 @@ use ash::{vk, extensions::khr::Surface as AshSurface, Entry};
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use crate::Instance;
 
-#[derive(Clone)]
 pub struct Surface {
     pub(crate) inner: AshSurface,
     pub surface_khr: vk::SurfaceKHR,

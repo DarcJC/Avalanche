@@ -3,7 +3,6 @@ use std::sync::Arc;
 use ash::{vk, Device as AshDevice};
 use crate::{Instance, PhysicalDevice, Queue, QueueFamily};
 
-#[derive(Clone)]
 pub struct Device {
     pub inner: AshDevice,
 }

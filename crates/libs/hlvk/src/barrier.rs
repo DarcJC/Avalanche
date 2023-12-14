@@ -4,7 +4,6 @@ use ash::vk;
 use crate::{Context, Device};
 
 /// Semaphore is for ordering gpu tasks
-#[derive(Clone)]
 pub struct Semaphore {
     device: Arc<Device>,
     pub(crate) inner: vk::Semaphore,
@@ -34,7 +33,6 @@ impl Drop for Semaphore {
 }
 
 /// Fence is for host-gpu sync
-#[derive(Clone)]
 pub struct Fence {
     device: Arc<Device>,
     pub(crate) inner: vk::Fence,
