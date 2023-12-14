@@ -9,6 +9,7 @@ mod queue;
 mod surface;
 mod barrier;
 mod image;
+mod sampler;
 
 pub use instance::*;
 pub use util::*;
@@ -19,3 +20,4 @@ pub use queue::*;
 pub use surface::*;
 pub use barrier::*;
 pub use image::*;
+pub use sampler::*;
