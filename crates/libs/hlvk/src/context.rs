@@ -1,11 +1,11 @@
 use std::sync::{Arc, Mutex};
-use ash::Entry;
+use ash::{Entry, vk};
 use gpu_allocator::AllocatorDebugSettings;
 use gpu_allocator::vulkan::{Allocator, AllocatorCreateDesc};
 use log::info;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use avalanche_utils::{Version, VERSION_1_0};
-use crate::{Device, DeviceFeatures, Instance, PhysicalDevice, Queue, QueueFamily, Surface};
+use crate::{CommandPool, Device, DeviceFeatures, Instance, PhysicalDevice, Queue, QueueFamily, Surface};
 
 pub struct Context {
     pub allocator: Arc<Mutex<Allocator>>,
@@ -18,6 +18,7 @@ pub struct Context {
     pub present_queue_family: QueueFamily,
     /// main surface, other surface is keeping by [avalanche-window] crate
     pub surface: Surface,
+    pub command_pool: CommandPool,
     // TODO raytracing
     _entry: Entry,
 }
@@ -129,7 +130,12 @@ impl Context {
             // TODO raytracing
         });
 
-        // TODO Command Pool
+        let command_pool = CommandPool::new(
+            device.clone(),
+            // ray_tracing.clone(), // TODO raytracing
+            graphics_queue_family,
+            Some(vk::CommandPoolCreateFlags::TRANSIENT),
+        )?;
 
         let allocator = Allocator::new(&AllocatorCreateDesc {
             instance: instance.inner.clone(),
@@ -157,6 +163,7 @@ impl Context {
             present_queue,
             present_queue_family,
             surface,
+            command_pool,
             _entry: entry,
         })
     }

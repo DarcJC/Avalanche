@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use ash::vk;
-use crate::Device;
+use crate::{CommandBuffer, Device, Fence, Semaphore};
 
 #[derive(Debug, Clone, Copy)]
 pub struct QueueFamily {
@@ -54,5 +54,51 @@ impl Queue {
         Self { device, inner }
     }
 
-    // TODO submit function
+    pub fn submit(
+        &self,
+        command_buffer: &CommandBuffer,
+        wait_semaphore: Option<SemaphoreSubmitInfo>,
+        signal_semaphore: Option<SemaphoreSubmitInfo>,
+        fence: &Fence,
+    ) -> anyhow::Result<()> {
+        let wait_semaphore_submit_info = wait_semaphore.map(|s| {
+            vk::SemaphoreSubmitInfo::builder()
+                .semaphore(s.semaphore.inner)
+                .stage_mask(s.stage_mask)
+        });
+        let signal_semaphore_submit_info = signal_semaphore.map(|s| {
+            vk::SemaphoreSubmitInfo::builder()
+                .semaphore(s.semaphore.inner)
+                .stage_mask(s.stage_mask)
+        });
+
+        let cmd_buffer_submit_info =
+            vk::CommandBufferSubmitInfo::builder().command_buffer(command_buffer.inner);
+
+        let submit_info = vk::SubmitInfo2::builder()
+            .command_buffer_infos(std::slice::from_ref(&cmd_buffer_submit_info));
+        let submit_info = match wait_semaphore_submit_info.as_ref() {
+            Some(info) => submit_info.wait_semaphore_infos(std::slice::from_ref(info)),
+            None => submit_info,
+        };
+        let submit_info = match signal_semaphore_submit_info.as_ref() {
+            Some(info) => submit_info.signal_semaphore_infos(std::slice::from_ref(info)),
+            None => submit_info,
+        };
+
+        unsafe {
+            self.device.inner.queue_submit2(
+                self.inner,
+                std::slice::from_ref(&submit_info),
+                fence.inner,
+            )?
+        };
+
+        Ok(())
+    }
+}
+
+pub struct SemaphoreSubmitInfo<'a> {
+    pub semaphore: &'a Semaphore,
+    pub stage_mask: vk::PipelineStageFlags2,
 }
