@@ -10,6 +10,7 @@ use crate::{Device, DeviceFeatures, Instance, PhysicalDevice, Queue, QueueFamily
 pub struct Context {
     pub allocator: Arc<Mutex<Allocator>>,
     pub instance: Instance,
+    pub physical_device: PhysicalDevice,
     pub device: Arc<Device>,
     pub graphics_queue: Queue,
     pub graphics_queue_family: QueueFamily,
@@ -149,6 +150,7 @@ impl Context {
         Ok(Self {
             allocator: Arc::new(Mutex::new(allocator)),
             instance,
+            physical_device,
             device,
             graphics_queue,
             graphics_queue_family,

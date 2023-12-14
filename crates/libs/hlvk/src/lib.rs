@@ -10,6 +10,7 @@ mod surface;
 mod barrier;
 mod image;
 mod sampler;
+mod query;
 
 pub use instance::*;
 pub use util::*;
@@ -21,3 +22,4 @@ pub use surface::*;
 pub use barrier::*;
 pub use image::*;
 pub use sampler::*;
+pub use query::*;
