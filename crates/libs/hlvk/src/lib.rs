@@ -14,6 +14,7 @@ mod query;
 mod buffer;
 mod descriptor;
 mod command;
+mod swapchain;
 
 pub use instance::*;
 pub use util::*;
@@ -29,3 +30,4 @@ pub use query::*;
 pub use buffer::*;
 pub use descriptor::*;
 pub use command::*;
+pub use swapchain::*;
