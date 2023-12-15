@@ -98,6 +98,17 @@ pub struct DeviceFeatures {
 }
 
 impl DeviceFeatures {
+    pub fn full() -> Self {
+        Self {
+            ray_tracing_pipeline: true,
+            acceleration_structure: true,
+            runtime_descriptor_array: true,
+            buffer_device_address: true,
+            dynamic_rendering: true,
+            synchronization2: true,
+        }
+    }
+
     pub fn is_compatible_with(&self, requirements: &Self) -> bool {
         (!requirements.ray_tracing_pipeline || self.ray_tracing_pipeline)
             && (!requirements.acceleration_structure || self.acceleration_structure)

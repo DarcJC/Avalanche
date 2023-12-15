@@ -1,3 +1,5 @@
+#![feature(if_let_guard)]
+
 mod global;
 mod manager;
 

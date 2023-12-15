@@ -26,7 +26,7 @@ impl Instance {
             .application_name(app_name.as_c_str())
             .build();
 
-        let is_debug = std::env::var("PROFILE")?.eq("debug");
+        let is_debug = std::env::var("PROFILE").unwrap_or(String::new()).eq("debug");
 
         let mut extension_names = ash_window::enumerate_required_extensions(display_handle.display_handle()?.as_raw())?.to_vec();
         if is_debug {

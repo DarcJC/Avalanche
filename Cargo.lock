@@ -326,6 +326,10 @@ dependencies = [
 name = "avalanche-engine"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "ash",
+ "avalanche-hlvk",
+ "avalanche-utils",
  "avalanche-window",
  "bevy_app",
  "bevy_core",

@@ -23,7 +23,7 @@ ash-window = { path = "crates/libs/ash_window" }
 
 log = "0.4"
 env_logger = "0.10.1"
-ash = "0.37.3"
+ash = { version = "0.37.3", features = ["linked", "loaded"] }
 winit = "0.29.3"
 once_cell = "1.18.0"
 raw-window-handle = "0.6.0"

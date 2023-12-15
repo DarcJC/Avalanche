@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc};
 use std::time::Duration;
 use anyhow::Context;
 use winit::event::{Event, WindowEvent};
@@ -52,7 +52,7 @@ fn window_event_handler(event: Event<()>, target: &EventLoopWindowTarget<()>) {
         Event::WindowEvent {
             event: WindowEvent::CloseRequested,
             window_id,
-        } if WindowManager::notify_window_to_exit(window_id) => target.exit(),
+        } if let Ok(_) = WindowManager::notify_window_to_exit(window_id) => target.exit(),
 
         Event::WindowEvent {
             event: WindowEvent::Resized(..),
