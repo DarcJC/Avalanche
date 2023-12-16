@@ -4,7 +4,7 @@ use anyhow::Result;
 use ash::vk;
 
 use crate::{
-    device::Device, Buffer, Context, DescriptorSet, Image,
+    device::Device, Buffer, Context, Image,
     ImageView, QueueFamily,
     TimestampQueryPool,
 };

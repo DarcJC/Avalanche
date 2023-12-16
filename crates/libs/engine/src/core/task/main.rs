@@ -1,9 +1,8 @@
 use std::io::Write;
 use std::ops::Deref;
 use bevy_app::{App, Plugin, PluginGroup, PluginGroupBuilder, PostStartup, PreStartup, Update};
-use bevy_ecs::prelude::{Resource, World};
+use bevy_ecs::prelude::{IntoSystemConfigs, Resource, World};
 use chrono::Local;
-use anyhow::Result;
 use ash::vk;
 use env_logger::Env;
 use avalanche_hlvk::{CommandBuffer, CommandPool, Context, ContextBuilder, DeviceFeatures, Swapchain};
@@ -21,8 +20,12 @@ pub struct RenderingContext {
 
 /// Exclusive system to force schedule in main thread
 fn start_rendering_system_with_window(world: &mut World) {
-    let handle = get_window_manager().lock().unwrap().create_main_window().unwrap();
-    let window = handle.get_raw_window().unwrap();
+    let binding = get_window_manager();
+    let mut window_manager = binding.write().unwrap();
+    let handle = window_manager.create_main_window().unwrap();
+    let window = window_manager.get_raw_window(handle).unwrap();
+    drop(window_manager);
+    drop(binding);
 
     let vulkan_context = ContextBuilder::new(window.deref(), window.deref())
         .required_device_features(DeviceFeatures::full())
@@ -58,12 +61,12 @@ fn start_rendering_system_with_window(world: &mut World) {
 }
 
 fn poll_window_events(_world: &mut World) {
-    get_window_manager().lock().unwrap().handle_events();
+    get_window_manager().write().unwrap().handle_events();
 }
 
 impl Plugin for WindowSystemTaskPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PostStartup, start_rendering_system_with_window);
+        app.add_systems(PostStartup, start_rendering_system_with_window.before(poll_window_events));
         app.add_systems(Update, poll_window_events);
     }
 }

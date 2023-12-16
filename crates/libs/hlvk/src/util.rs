@@ -1,7 +1,7 @@
 use ash::vk;
 use avalanche_utils::Version;
 
-pub(crate) trait IntoAshVersion {
+pub trait IntoAshVersion {
     fn into_version(self) -> u32;
 }
 

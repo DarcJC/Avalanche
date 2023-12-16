@@ -15,7 +15,7 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    pub(crate) fn new(
+    pub fn new(
         device: Arc<Device>,
         allocator: Arc<Mutex<Allocator>>,
         usage: vk::BufferUsageFlags,
