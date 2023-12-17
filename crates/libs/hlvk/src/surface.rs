@@ -1,11 +1,13 @@
 
 use ash::{vk, extensions::khr::Surface as AshSurface, Entry};
+use log::debug;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use crate::Instance;
 
 pub struct Surface {
     pub(crate) inner: AshSurface,
     pub surface_khr: vk::SurfaceKHR,
+    pub is_main_surface: bool,
 }
 
 impl Surface {
@@ -26,12 +28,15 @@ impl Surface {
             )?
         };
 
-        Ok(Self { inner, surface_khr })
+        Ok(Self { inner, surface_khr, is_main_surface: false })
     }
 }
 
 impl Drop for Surface {
     fn drop(&mut self) {
+        if self.is_main_surface {
+            debug!("[Vulkan] Trying to destroy main surface!");
+        }
         unsafe {
             self.inner.destroy_surface(self.surface_khr, None);
         }

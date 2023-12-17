@@ -17,7 +17,7 @@ pub struct Context {
     pub present_queue: Queue,
     pub present_queue_family: QueueFamily,
     /// main surface, other surface is keeping by [avalanche-window] crate
-    pub surface: Surface,
+    pub surface: Arc<Surface>,
     pub command_pool: CommandPool,
     // TODO raytracing
     _entry: Entry,
@@ -105,7 +105,8 @@ impl Context {
         let entry = unsafe { Entry::load()? };
         let mut instance = Instance::new(&entry, display_handle, vulkan_version, app_name)?;
 
-        let surface = Surface::new(&entry, &instance, window_handle, display_handle)?;
+        let mut surface = Surface::new(&entry, &instance, window_handle, display_handle)?;
+        surface.is_main_surface = true;
 
         let physical_devices = instance.enumerate_physical_devices(&surface)?;
         let (physical_device, graphics_queue_family, present_queue_family) =
@@ -162,7 +163,7 @@ impl Context {
             graphics_queue_family,
             present_queue,
             present_queue_family,
-            surface,
+            surface: Arc::new(surface),
             command_pool,
             _entry: entry,
         })

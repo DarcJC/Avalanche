@@ -227,6 +227,25 @@ impl Swapchain {
         })
     }
 
+    pub fn acquire_next_image_v2(&self, timeout: Duration) -> Result<AcquiredImage> {
+        let timeout = timeout.as_nanos() as u64;
+        let (index, is_suboptimal) = unsafe {
+            self.inner.acquire_next_image2(
+                &vk::AcquireNextImageInfoKHR::builder()
+                    .swapchain(self.swapchain_khr)
+                    .timeout(timeout)
+                    .fence(vk::Fence::null())
+                    .semaphore(vk::Semaphore::null())
+                    .build()
+            )?
+        };
+
+        Ok(AcquiredImage {
+            index,
+            is_suboptimal,
+        })
+    }
+
     pub fn queue_present(
         &self,
         image_index: u32,

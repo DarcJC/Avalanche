@@ -1,5 +1,6 @@
 use std::io::Write;
 use std::ops::Deref;
+use std::sync::Arc;
 use bevy_app::{App, Plugin, PluginGroup, PluginGroupBuilder, PostStartup, PreStartup, Update};
 use bevy_ecs::prelude::{IntoSystemConfigs, Resource, World};
 use chrono::Local;
@@ -14,7 +15,6 @@ pub struct WindowSystemTaskPlugin;
 pub struct RenderingContext {
     pub context: Context,
     pub command_pool: CommandPool,
-    pub swapchain: Swapchain,
     pub swapchain_command_buffer: Vec<CommandBuffer>,
 }
 
@@ -24,8 +24,6 @@ fn start_rendering_system_with_window(world: &mut World) {
     let mut window_manager = binding.write().unwrap();
     let handle = window_manager.create_main_window().unwrap();
     let window = window_manager.get_raw_window(handle).unwrap();
-    drop(window_manager);
-    drop(binding);
 
     let vulkan_context = ContextBuilder::new(window.deref(), window.deref())
         .required_device_features(DeviceFeatures::full())
@@ -34,6 +32,11 @@ fn start_rendering_system_with_window(world: &mut World) {
         .required_device_extensions(vec!["VK_KHR_swapchain"].deref())
         .vulkan_version(avalanche_utils::VERSION_1_3)
         .build().unwrap();
+
+    window_manager.set_window_surface(handle, vulkan_context.surface.clone()).unwrap();
+
+    drop(window_manager);
+    drop(binding);
 
     let command_pool = vulkan_context.create_command_pool(
         vulkan_context.graphics_queue_family,
@@ -50,10 +53,11 @@ fn start_rendering_system_with_window(world: &mut World) {
 
     let command_buffers = command_pool.allocate_command_buffers(vk::CommandBufferLevel::PRIMARY, swapchain.images.len() as _).unwrap();
 
+    get_window_manager().write().unwrap().set_window_swapchain(handle, Arc::new(swapchain)).expect("Failed to add swapchain to window manager.");
+
     let context = RenderingContext {
         context: vulkan_context,
         command_pool,
-        swapchain,
         swapchain_command_buffer: command_buffers,
     };
 

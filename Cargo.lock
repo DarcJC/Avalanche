@@ -369,6 +369,7 @@ dependencies = [
  "anyhow",
  "ash-window",
  "async-std",
+ "avalanche-hlvk",
  "avalanche-utils",
  "log",
  "once_cell",

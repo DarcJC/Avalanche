@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use winit::dpi::PhysicalSize;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{EventLoop, EventLoopWindowTarget};
 use winit::platform::pump_events::{EventLoopExtPumpEvents, PumpStatus};
 use winit::window::{Window, WindowBuilder, WindowId};
+use avalanche_hlvk::{Semaphore, Surface, Swapchain};
 use avalanche_utils::IdGenerator32;
 
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
@@ -45,6 +46,8 @@ pub struct WindowManager {
     pub(crate) event_loop: RwLock<EventLoopType>,
     pub(crate) windows: HashMap<WindowHandle, Arc<Window>>,
     pub(crate) window_states: HashMap<WindowHandle, RwLock<WindowState>>,
+    pub(crate) window_surfaces: RwLock<HashMap<WindowHandle, Arc<Surface>>>,
+    pub(crate) window_swapchains: RwLock<HashMap<WindowHandle, Arc<Swapchain>>>,
     pub(crate) id_generator: IdGenerator32,
     pub(crate) main_window_id: WindowHandle,
 }
@@ -90,7 +93,15 @@ impl WindowManager {
                     window_id,
                 } => {
                     let _ = self.notify_window_resized(window_id);
-                }
+                },
+
+                Event::WindowEvent {
+                    event: WindowEvent::RedrawRequested,
+                    window_id,
+                } => {
+                    let _ = self.notify_window_redraw(window_id);
+                },
+
                 Event::AboutToWait => {
                 },
 
@@ -119,8 +130,66 @@ impl WindowManager {
     }
 
     pub fn update_window_extent(&self, window_handle: WindowHandle, extent: (u32, u32)) -> anyhow::Result<()> {
-        self.window_states.get(&window_handle).context("Failed to find window with handle")?.write().unwrap().extent = extent;
+        let mut proxy = self.window_states.get(&window_handle).context("Failed to find window with handle")?.write().unwrap();
+        if proxy.extent != extent {
+            proxy.is_surface_dirty = true;
+            proxy.extent = extent;
+        }
 
         Ok(())
     }
+
+    pub fn set_window_surface(&self, window_handle: WindowHandle, surface: Arc<Surface>) -> anyhow::Result<()> {
+        if !self.windows.contains_key(&window_handle) {
+            return Err(anyhow!("Window handle is not maintained by window manager."));
+        }
+
+        self.window_surfaces.write().unwrap().insert(window_handle, surface);
+
+        Ok(())
+    }
+
+    pub fn set_window_swapchain(&self, window_handle: WindowHandle, swapchain: Arc<Swapchain>) -> anyhow::Result<()> {
+        if !self.windows.contains_key(&window_handle) {
+            return Err(anyhow!("Window handle is not maintained by window manager."));
+        }
+
+        self.window_swapchains.write().unwrap().insert(window_handle, swapchain);
+
+        Ok(())
+    }
+
+    pub fn update_window(&self, window_handle: WindowHandle) -> anyhow::Result<()> {
+        if !self.windows.contains_key(&window_handle)
+        {
+            return Err(anyhow!("Window handle is not maintained by window manager."));
+        }
+
+        let mut recreate_surface = false;
+        let mut execute_present = false;
+        if let Some(state) = self.window_states.get(&window_handle) {
+            let state = state.read().unwrap();
+            execute_present = state.is_pending_redraw;
+            recreate_surface = state.is_surface_dirty;
+        }
+
+        if !recreate_surface && !execute_present {
+            // Nothing to be done
+            return Ok(())
+        }
+
+        if let Some(_surface) = self.window_surfaces.read().unwrap().get(&window_handle)
+            && let Some(swapchain) = self.window_swapchains.read().unwrap().get(&window_handle)
+        {
+            let next_image_info = swapchain.acquire_next_image_v2(Duration::new(1, 0))?;
+            swapchain.queue_present(next_image_info.index, &[], );
+            Ok(())
+        }
+        else {
+            Err(anyhow!("Failed to find correct context of handle {window_handle}!"))
+        }
+
+    }
+
+    pub fn update_all_windows(&self) {}
 }

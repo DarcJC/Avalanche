@@ -13,6 +13,8 @@ fn create_window_manager() -> Arc<RwLock<WindowManager>> {
         event_loop: RwLock::new(EventLoopType::new().unwrap()),
         windows: HashMap::new(),
         window_states: HashMap::new(),
+        window_surfaces: RwLock::new(HashMap::new()),
+        window_swapchains: RwLock::new(HashMap::new()),
         id_generator: IdGenerator32::new(),
         main_window_id: WindowHandle::none(),
     }))
@@ -45,7 +47,7 @@ impl WindowManager {
         }
     }
 
-    pub fn notify_window_redraw(&mut self, window_id: WindowId) -> anyhow::Result<()> {
+    pub fn notify_window_redraw(&self, window_id: WindowId) -> anyhow::Result<()> {
         if let Ok(window_handle) = self.find_window_by_window_id(window_id) {
             self.mark_window_redraw(window_handle)?;
 
