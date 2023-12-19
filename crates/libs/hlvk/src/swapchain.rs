@@ -1,10 +1,10 @@
 use std::sync::Arc;
 use std::time::Duration;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use ash::extensions::khr::Swapchain as AshSwapchain;
 use ash::vk;
 use log::debug;
-use crate::{Context, Device, Image, ImageView, Queue, Semaphore};
+use crate::{Context, Device, Fence, Image, ImageView, Queue, Semaphore};
 
 pub struct AcquiredImage {
     pub index: u32,
@@ -90,7 +90,7 @@ impl Swapchain {
                 .image_extent(extent)
                 .image_array_layers(1)
                 .image_usage(
-                    vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_DST,
+                    vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_DST
                 );
             builder = if context.graphics_queue_family.index != context.present_queue_family.index {
                 builder
@@ -143,6 +143,8 @@ impl Swapchain {
     }
 
     pub fn resize(&mut self, context: &Context, width: u32, height: u32) -> Result<()> {
+        self.destroy();
+
         let capabilities = context.get_surface_capabilities()?;
         let extent = get_surface_suitable_extent(&capabilities, width, height);
         debug!("[Vulkan] Resizing swapchain to {}x{}", extent.width, extent.height);
@@ -209,15 +211,17 @@ impl Swapchain {
         Ok(())
     }
 
-    pub fn acquire_next_image(&self, timeout: Duration, semaphore: &Semaphore) -> Result<AcquiredImage> {
-        // TODO: Try use AcquireNextImage2 with vulkan 1.1
+    pub fn acquire_next_image(&self, timeout: Duration, fence: Option<&Fence>, semaphore: Option<&Semaphore>) -> Result<AcquiredImage> {
+        if fence.is_none() && semaphore.is_none() {
+            return Err(anyhow!("Fence and semaphore should not both none."));
+        }
         let timeout = timeout.as_nanos() as u64;
         let (index, is_suboptimal) = unsafe {
             self.inner.acquire_next_image(
                 self.swapchain_khr,
                 timeout,
-                semaphore.inner,
-                vk::Fence::null(),
+                if let Some(semaphore) = semaphore { semaphore.inner } else { vk::Semaphore::null() },
+                if let Some(fence) = fence { fence.inner } else { vk::Fence::null() },
             )?
         };
 
@@ -227,15 +231,18 @@ impl Swapchain {
         })
     }
 
-    pub fn acquire_next_image_v2(&self, timeout: Duration) -> Result<AcquiredImage> {
+    pub fn acquire_next_image_v2(&self, timeout: Duration, fence: Option<&Fence>, semaphore: Option<&Semaphore>) -> Result<AcquiredImage> {
+        if fence.is_none() && semaphore.is_none() {
+            return Err(anyhow!("Fence and semaphore should not both none."));
+        }
         let timeout = timeout.as_nanos() as u64;
         let (index, is_suboptimal) = unsafe {
             self.inner.acquire_next_image2(
                 &vk::AcquireNextImageInfoKHR::builder()
                     .swapchain(self.swapchain_khr)
                     .timeout(timeout)
-                    .fence(vk::Fence::null())
-                    .semaphore(vk::Semaphore::null())
+                    .fence(if let Some(fence) = fence { fence.inner } else { vk::Fence::null() })
+                    .semaphore(if let Some(semaphore) = semaphore { semaphore.inner } else { vk::Semaphore::null() })
                     .build()
             )?
         };

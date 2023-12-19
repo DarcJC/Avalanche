@@ -1,13 +1,15 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use anyhow::{anyhow, Context};
+use log::info;
 use winit::dpi::PhysicalSize;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{EventLoop, EventLoopWindowTarget};
 use winit::platform::pump_events::{EventLoopExtPumpEvents, PumpStatus};
 use winit::window::{Window, WindowBuilder, WindowId};
-use avalanche_hlvk::{Semaphore, Surface, Swapchain};
+use avalanche_hlvk::{Surface, Swapchain};
 use avalanche_utils::IdGenerator32;
 
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
@@ -47,7 +49,7 @@ pub struct WindowManager {
     pub(crate) windows: HashMap<WindowHandle, Arc<Window>>,
     pub(crate) window_states: HashMap<WindowHandle, RwLock<WindowState>>,
     pub(crate) window_surfaces: RwLock<HashMap<WindowHandle, Arc<Surface>>>,
-    pub(crate) window_swapchains: RwLock<HashMap<WindowHandle, Arc<Swapchain>>>,
+    pub(crate) window_swapchains: RwLock<HashMap<WindowHandle, RefCell<Swapchain>>>,
     pub(crate) id_generator: IdGenerator32,
     pub(crate) main_window_id: WindowHandle,
 }
@@ -149,7 +151,7 @@ impl WindowManager {
         Ok(())
     }
 
-    pub fn set_window_swapchain(&self, window_handle: WindowHandle, swapchain: Arc<Swapchain>) -> anyhow::Result<()> {
+    pub fn set_window_swapchain(&self, window_handle: WindowHandle, swapchain: RefCell<Swapchain>) -> anyhow::Result<()> {
         if !self.windows.contains_key(&window_handle) {
             return Err(anyhow!("Window handle is not maintained by window manager."));
         }
@@ -159,37 +161,54 @@ impl WindowManager {
         Ok(())
     }
 
-    pub fn update_window(&self, window_handle: WindowHandle) -> anyhow::Result<()> {
+    pub fn update_window(&mut self, window_handle: &WindowHandle, vk_context: &avalanche_hlvk::Context) -> anyhow::Result<()> {
         if !self.windows.contains_key(&window_handle)
         {
             return Err(anyhow!("Window handle is not maintained by window manager."));
         }
 
-        let mut recreate_surface = false;
+        let mut recreate_swapchain = false;
         let mut execute_present = false;
         if let Some(state) = self.window_states.get(&window_handle) {
             let state = state.read().unwrap();
             execute_present = state.is_pending_redraw;
-            recreate_surface = state.is_surface_dirty;
+            recreate_swapchain = state.is_surface_dirty;
         }
 
-        if !recreate_surface && !execute_present {
+        if !recreate_swapchain && !execute_present {
             // Nothing to be done
             return Ok(())
         }
 
         if let Some(_surface) = self.window_surfaces.read().unwrap().get(&window_handle)
-            && let Some(swapchain) = self.window_swapchains.read().unwrap().get(&window_handle)
+            && let Some(swapchain) = self.window_swapchains.write().unwrap().get_mut(&window_handle)
         {
-            let next_image_info = swapchain.acquire_next_image_v2(Duration::new(1, 0))?;
-            swapchain.queue_present(next_image_info.index, &[], );
+            let state = self.window_states.get(&window_handle).context("State error")?;
+            let mut state = state.write().unwrap();
+            let swapchain = swapchain.get_mut();
+            if execute_present {
+                let next_image_info = swapchain.acquire_next_image(Duration::new(1, 0), None, None)?;
+                swapchain.queue_present(next_image_info.index, &[], &vk_context.present_queue)?;
+                state.is_pending_redraw = false;
+            }
+            if recreate_swapchain {
+                swapchain.resize(vk_context, state.extent.0, state.extent.1)?;
+                info!("Resizing");
+                state.is_surface_dirty = false;
+            }
             Ok(())
         }
         else {
-            Err(anyhow!("Failed to find correct context of handle {window_handle}!"))
+            Err(anyhow!("Failed to find correct context of handle {window_handle:?}!"))
         }
 
     }
 
-    pub fn update_all_windows(&self) {}
+    pub fn update_all_windows(&mut self, vk_context: &avalanche_hlvk::Context) -> anyhow::Result<()> {
+        let keys = self.windows.keys().map(|h| *h).collect::<Vec<_>>();
+        for handle in keys {
+            self.update_window(&handle, vk_context)?;
+        }
+        Ok(())
+    }
 }

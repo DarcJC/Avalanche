@@ -1,6 +1,6 @@
+use std::cell::RefCell;
 use std::io::Write;
 use std::ops::Deref;
-use std::sync::Arc;
 use bevy_app::{App, Plugin, PluginGroup, PluginGroupBuilder, PostStartup, PreStartup, Update};
 use bevy_ecs::prelude::{IntoSystemConfigs, Resource, World};
 use chrono::Local;
@@ -53,7 +53,7 @@ fn start_rendering_system_with_window(world: &mut World) {
 
     let command_buffers = command_pool.allocate_command_buffers(vk::CommandBufferLevel::PRIMARY, swapchain.images.len() as _).unwrap();
 
-    get_window_manager().write().unwrap().set_window_swapchain(handle, Arc::new(swapchain)).expect("Failed to add swapchain to window manager.");
+    get_window_manager().write().unwrap().set_window_swapchain(handle, RefCell::new(swapchain)).expect("Failed to add swapchain to window manager.");
 
     let context = RenderingContext {
         context: vulkan_context,
@@ -68,10 +68,18 @@ fn poll_window_events(_world: &mut World) {
     get_window_manager().write().unwrap().handle_events();
 }
 
+fn window_system_tick(world: &mut World) {
+    let context = world.get_resource::<RenderingContext>().unwrap();
+    get_window_manager().write().unwrap().update_all_windows(&context.context).unwrap();
+}
+
 impl Plugin for WindowSystemTaskPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(PostStartup, start_rendering_system_with_window.before(poll_window_events));
-        app.add_systems(Update, poll_window_events);
+        app.add_systems(Update, (
+            poll_window_events,
+            window_system_tick.after(poll_window_events)
+        ));
     }
 }
 
