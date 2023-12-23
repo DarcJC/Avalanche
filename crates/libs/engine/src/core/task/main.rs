@@ -7,7 +7,6 @@ use chrono::Local;
 use ash::vk;
 use env_logger::Env;
 use avalanche_hlvk::{CommandBuffer, CommandPool, Context, ContextBuilder, DeviceFeatures, Swapchain};
-use avalanche_window::get_window_manager;
 
 pub struct WindowSystemTaskPlugin;
 
@@ -25,6 +24,9 @@ fn start_rendering_system_with_window(world: &mut World) {
     let handle = window_manager.create_main_window().unwrap();
     let window = window_manager.get_raw_window(handle).unwrap();
 
+    drop(window_manager);
+    drop(binding);
+
     let vulkan_context = ContextBuilder::new(window.deref(), window.deref())
         .required_device_features(DeviceFeatures::full())
         .with_raytracing_context(false)
@@ -32,11 +34,6 @@ fn start_rendering_system_with_window(world: &mut World) {
         .required_device_extensions(vec!["VK_KHR_swapchain"].deref())
         .vulkan_version(avalanche_utils::VERSION_1_3)
         .build().unwrap();
-
-    window_manager.set_window_surface(handle, vulkan_context.surface.clone()).unwrap();
-
-    drop(window_manager);
-    drop(binding);
 
     let command_pool = vulkan_context.create_command_pool(
         vulkan_context.graphics_queue_family,
@@ -53,7 +50,7 @@ fn start_rendering_system_with_window(world: &mut World) {
 
     let command_buffers = command_pool.allocate_command_buffers(vk::CommandBufferLevel::PRIMARY, swapchain.images.len() as _).unwrap();
 
-    get_window_manager().write().unwrap().set_window_swapchain(handle, RefCell::new(swapchain)).expect("Failed to add swapchain to window manager.");
+    get_window_manager().write().unwrap().init_window_state(handle, vulkan_context.surface.clone(), RefCell::new(swapchain), vulkan_context.device.clone()).expect("Failed to add swapchain to window manager.");
 
     let context = RenderingContext {
         context: vulkan_context,

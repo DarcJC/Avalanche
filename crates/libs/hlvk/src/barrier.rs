@@ -10,7 +10,7 @@ pub struct Semaphore {
 }
 
 impl Semaphore {
-    pub(crate) fn new(device: Arc<Device>) -> anyhow::Result<Self> {
+    pub fn new(device: Arc<Device>) -> anyhow::Result<Self> {
         let semaphore_info = vk::SemaphoreCreateInfo::builder();
         let inner = unsafe { device.inner.create_semaphore(&semaphore_info, None)? };
 
@@ -39,7 +39,7 @@ pub struct Fence {
 }
 
 impl Fence {
-    pub(crate) fn new(device: Arc<Device>, flags: Option<vk::FenceCreateFlags>) -> anyhow::Result<Self> {
+    pub fn new(device: Arc<Device>, flags: Option<vk::FenceCreateFlags>) -> anyhow::Result<Self> {
         let flags = flags.unwrap_or_else(vk::FenceCreateFlags::empty);
         let fence_info = vk::FenceCreateInfo::builder().flags(flags);
         let inner = unsafe { device.inner.create_fence(&fence_info, None)? };
