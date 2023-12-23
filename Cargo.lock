@@ -360,6 +360,7 @@ name = "avalanche-utils"
 version = "0.1.0"
 dependencies = [
  "async-std",
+ "once_cell",
 ]
 
 [[package]]
@@ -371,6 +372,12 @@ dependencies = [
  "async-std",
  "avalanche-hlvk",
  "avalanche-utils",
+ "bevy_app",
+ "bevy_core",
+ "bevy_ecs",
+ "bevy_reflect",
+ "bevy_reflect_derive",
+ "bevy_time",
  "log",
  "once_cell",
  "raw-window-handle",

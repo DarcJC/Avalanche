@@ -1,4 +1,5 @@
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use once_cell::sync::Lazy;
 
 pub struct IdGenerator32 {
     current_id: AtomicU32,
@@ -39,3 +40,7 @@ impl crate::IdGenerator64 {
         0
     }
 }
+
+pub static ID_GENERATOR_32_STATIC: Lazy<IdGenerator32> = Lazy::new(IdGenerator32::new);
+
+pub static ID_GENERATOR_64_STATIC: Lazy<IdGenerator64> = Lazy::new(IdGenerator64::new);

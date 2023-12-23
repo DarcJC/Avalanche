@@ -10,3 +10,4 @@ authors.workspace = true
 
 [dependencies]
 async-std.workspace = true
+once_cell.workspace = true

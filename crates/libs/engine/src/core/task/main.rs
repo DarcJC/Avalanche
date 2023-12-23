@@ -1,14 +1,15 @@
-use std::cell::RefCell;
 use std::io::Write;
 use std::ops::Deref;
-use bevy_app::{App, Plugin, PluginGroup, PluginGroupBuilder, PostStartup, PreStartup, Update};
-use bevy_ecs::prelude::{IntoSystemConfigs, Resource, World};
+use std::sync::RwLock;
+use bevy_app::{App, Plugin, PluginGroup, PluginGroupBuilder, PostStartup, PreStartup};
+use bevy_ecs::prelude::{Resource, World};
 use chrono::Local;
 use ash::vk;
 use env_logger::Env;
 use avalanche_hlvk::{CommandBuffer, CommandPool, Context, ContextBuilder, DeviceFeatures, Swapchain};
+use avalanche_window::{new_window_component, WindowManager, WindowSystemPlugin};
 
-pub struct WindowSystemTaskPlugin;
+pub struct EngineContextSetupPlugin;
 
 #[derive(Resource)]
 pub struct RenderingContext {
@@ -19,15 +20,11 @@ pub struct RenderingContext {
 
 /// Exclusive system to force schedule in main thread
 fn start_rendering_system_with_window(world: &mut World) {
-    let binding = get_window_manager();
-    let mut window_manager = binding.write().unwrap();
-    let handle = window_manager.create_main_window().unwrap();
-    let window = window_manager.get_raw_window(handle).unwrap();
+    let window_manager = world.get_non_send_resource::<WindowManager>().unwrap();
+    let mut first_window_component = new_window_component(window_manager.event_loop.borrow_mut().deref()).unwrap();
+    let window_ref = first_window_component.window.write().unwrap();
 
-    drop(window_manager);
-    drop(binding);
-
-    let vulkan_context = ContextBuilder::new(window.deref(), window.deref())
+    let vulkan_context = ContextBuilder::new(window_ref.deref(), window_ref.deref())
         .required_device_features(DeviceFeatures::full())
         .with_raytracing_context(false)
         .app_name("Avalanche Engine")
@@ -42,15 +39,19 @@ fn start_rendering_system_with_window(world: &mut World) {
 
     let swapchain = Swapchain::new(
         &vulkan_context,
-        window.inner_size().width,
-        window.inner_size().height,
+        window_ref.inner_size().width,
+        window_ref.inner_size().height,
     ).unwrap();
 
     // TODO raytracing
 
+    drop(window_ref);
+
     let command_buffers = command_pool.allocate_command_buffers(vk::CommandBufferLevel::PRIMARY, swapchain.images.len() as _).unwrap();
 
-    get_window_manager().write().unwrap().init_window_state(handle, vulkan_context.surface.clone(), RefCell::new(swapchain), vulkan_context.device.clone()).expect("Failed to add swapchain to window manager.");
+    first_window_component.render_device = Some(vulkan_context.device.clone());
+    first_window_component.surface = Some(vulkan_context.surface.clone());
+    first_window_component.swapchain = Some(RwLock::new(swapchain));
 
     let context = RenderingContext {
         context: vulkan_context,
@@ -59,24 +60,12 @@ fn start_rendering_system_with_window(world: &mut World) {
     };
 
     world.insert_resource(context);
+    world.spawn(first_window_component);
 }
 
-fn poll_window_events(_world: &mut World) {
-    get_window_manager().write().unwrap().handle_events();
-}
-
-fn window_system_tick(world: &mut World) {
-    let context = world.get_resource::<RenderingContext>().unwrap();
-    get_window_manager().write().unwrap().update_all_windows(&context.context).unwrap();
-}
-
-impl Plugin for WindowSystemTaskPlugin {
+impl Plugin for EngineContextSetupPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PostStartup, start_rendering_system_with_window.before(poll_window_events));
-        app.add_systems(Update, (
-            poll_window_events,
-            window_system_tick.after(poll_window_events)
-        ));
+        app.add_systems(PostStartup, start_rendering_system_with_window);
     }
 }
 
@@ -110,7 +99,8 @@ impl PluginGroup for MainTaskPluginGroup {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(LogSystemPlugin)
-            .add(WindowSystemTaskPlugin)
+            .add(WindowSystemPlugin)
+            .add(EngineContextSetupPlugin)
     }
 }
 
