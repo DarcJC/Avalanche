@@ -6,7 +6,8 @@ use std::cell::RefCell;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use bevy_app::{App, Plugin, Update};
-use bevy_ecs::prelude::{Component, Resource, World};
+use bevy_ecs::prelude::{Component, IntoSystemConfigs, Resource, World};
+use winit::event::{Event, WindowEvent};
 use winit::event_loop::{EventLoop, EventLoopBuilder};
 use winit::platform::pump_events::EventLoopExtPumpEvents;
 use winit::window::{Window, WindowBuilder};
@@ -20,6 +21,7 @@ impl Plugin for WindowSystemPlugin {
     fn build(&self, app: &mut App) {
         app.init_non_send_resource::<WindowManager>();
         app.add_systems(Update, (
+            winit_event_poll_worker_system.before(window_update_system),
             window_update_system,
         ));
     }
@@ -82,6 +84,13 @@ fn winit_event_poll_worker_system(world: &mut World) {
         .pump_events(
             Some(Duration::from_secs_f64(0.33)),
             |event, event_target| {
+                    match event {
+                        Event::WindowEvent {
+                            event: WindowEvent::CloseRequested,
+                            window_id,
+                        } => (),
+                        _ => (),
+                    }
                 }
         );
 }
