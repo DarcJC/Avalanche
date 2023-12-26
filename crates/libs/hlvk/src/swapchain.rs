@@ -21,6 +21,10 @@ pub struct Swapchain {
     pub present_mode: vk::PresentModeKHR,
     pub images: Vec<Image>,
     pub views: Vec<ImageView>,
+
+    /// semaphore for acquire image
+    acquire_semaphores: Vec<Arc<Semaphore>>,
+    current_semaphores_index: usize,
 }
 
 impl Swapchain {
@@ -129,6 +133,13 @@ impl Swapchain {
             .map(Image::create_image_view)
             .collect::<Result<Vec<_>, _>>()?;
 
+        let acquire_semaphores = images
+            .iter()
+            .map(|_| {
+                Arc::new(Semaphore::new(device.clone()).unwrap())
+            })
+            .collect::<Vec<_>>();
+
         Ok(Self {
             device,
             inner,
@@ -139,6 +150,8 @@ impl Swapchain {
             present_mode,
             images,
             views,
+            acquire_semaphores,
+            current_semaphores_index: 0,
         })
     }
 
@@ -203,6 +216,16 @@ impl Swapchain {
             .map(Image::create_image_view)
             .collect::<Result<Vec<_>, _>>()?;
 
+        if self.images.len() != image_count as usize {
+            self.acquire_semaphores = images
+                .iter()
+                .map(|_| {
+                    Arc::new(Semaphore::new(self.device.clone()).unwrap())
+                })
+                .collect::<Vec<_>>();
+            self.current_semaphores_index = 0;
+        }
+
         self.swapchain_khr = swapchain_khr;
         self.extent = extent;
         self.images = images;
@@ -211,16 +234,23 @@ impl Swapchain {
         Ok(())
     }
 
-    pub fn acquire_next_image(&self, timeout: Duration, fence: Option<&Fence>, semaphore: Option<&Semaphore>) -> Result<AcquiredImage> {
-        if fence.is_none() && semaphore.is_none() {
-            return Err(anyhow!("Fence and semaphore should not both none."));
-        }
+    fn next_semaphore(&mut self) -> Arc<Semaphore> {
+        self.current_semaphores_index = (self.current_semaphores_index + 1) % self.images.len();
+        self.current_acquire_semaphore()
+    }
+
+    pub fn current_acquire_semaphore(&self) -> Arc<Semaphore> {
+        self.acquire_semaphores[self.current_semaphores_index].clone()
+    }
+
+    pub fn acquire_next_image(&mut self, timeout: Duration, fence: Option<&Fence>) -> Result<AcquiredImage> {
         let timeout = timeout.as_nanos() as u64;
+        let semaphore = self.next_semaphore();
         let (index, is_suboptimal) = unsafe {
             self.inner.acquire_next_image(
                 self.swapchain_khr,
                 timeout,
-                if let Some(semaphore) = semaphore { semaphore.inner } else { vk::Semaphore::null() },
+                semaphore.inner,
                 if let Some(fence) = fence { fence.inner } else { vk::Fence::null() },
             )?
         };

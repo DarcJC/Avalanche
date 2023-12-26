@@ -1,13 +1,17 @@
 use std::io::Write;
 use std::ops::Deref;
 use std::sync::RwLock;
-use bevy_app::{App, Plugin, PluginGroup, PluginGroupBuilder, PostStartup, PreStartup};
-use bevy_ecs::prelude::{Resource, World};
+use std::time::Duration;
+use bevy_app::{App, Plugin, PluginGroup, PluginGroupBuilder, PostStartup, PreStartup, Update};
+use bevy_ecs::prelude::{EventReader, IntoSystemConfigs, Query, Res, Resource, World};
 use chrono::Local;
 use ash::vk;
+use bevy_ecs::system::NonSend;
 use env_logger::Env;
+use log::warn;
 use avalanche_hlvk::{CommandBuffer, CommandPool, Context, ContextBuilder, DeviceFeatures, Swapchain};
-use avalanche_window::{new_window_component, WindowManager, WindowSystemPlugin};
+use avalanche_window::{new_window_component, WindowComponent, WindowManager, WindowSystemPlugin};
+use avalanche_window::event::{WindowEventLoopClearedEvent, WindowResizedEvent};
 
 pub struct EngineContextSetupPlugin;
 
@@ -63,9 +67,40 @@ fn start_rendering_system_with_window(world: &mut World) {
     world.spawn(first_window_component);
 }
 
+fn window_resize_handler(mut event_reader: EventReader<WindowResizedEvent>, windows: Query<&WindowComponent>, rendering_context: Res<RenderingContext>) {
+    event_reader.read().for_each(|evt|  {
+        if let Some(window) = windows
+            .iter()
+            .find(|i| i.window.read().unwrap().id() == evt.window_id)  {
+            let res = window.swapchain.as_ref().unwrap().write().unwrap().resize(&rendering_context.context, evt.new_size.0, evt.new_size.1);
+            if let Err(err) = res {
+                warn!("[Window] Failed to recreate swapchain for window: {err}");
+            }
+        }
+    })
+}
+
+fn window_event_loop_cleared(mut event_reader: EventReader<WindowEventLoopClearedEvent>, windows: Query<&WindowComponent>, rendering_context: Res<RenderingContext>) {
+    if event_reader.read().is_empty() {
+        return;
+    }
+    windows
+        .iter()
+        .for_each(|window| {
+            let mut swapchain = window.swapchain.as_ref().unwrap().write().unwrap();
+            // TODO: catch exception
+            let next_image = swapchain.acquire_next_image(Duration::from_secs_f64(0.33), None).unwrap();
+            swapchain.queue_present(next_image.index, &[], &rendering_context.context.present_queue).unwrap();
+        });
+}
+
 impl Plugin for EngineContextSetupPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(PostStartup, start_rendering_system_with_window);
+        app.add_systems(Update, (
+            window_resize_handler,
+            window_event_loop_cleared.after(window_resize_handler),
+        ));
     }
 }
 

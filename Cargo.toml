@@ -43,6 +43,8 @@ bevy_app = { version = "0.12.1", features = ["bevy_reflect"] }
 bevy_core = { version = "0.12.1", features = [] }
 bevy_time = { version = "0.12.1", features = ["default"] }
 
+nalgebra = "0.32"
+
 [workspace.dependencies.async-std]
 version = "1.12.0"
 features = ["attributes", "once_cell"]
