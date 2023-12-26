@@ -39,6 +39,7 @@ impl Plugin for WindowSystemPlugin {
         app.add_event::<WinitWindowEvent>();
         app.add_event::<WindowResizedEvent>();
         app.add_event::<WindowEventLoopClearedEvent>();
+        app.configure_sets(Update, (WindowSystemSet::EventLoop, WindowSystemSet::Update).chain());
     }
 }
 
