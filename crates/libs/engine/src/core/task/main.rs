@@ -10,7 +10,7 @@ use bevy_ecs::system::NonSend;
 use env_logger::Env;
 use log::warn;
 use avalanche_hlvk::{CommandBuffer, CommandPool, Context, ContextBuilder, DeviceFeatures, Swapchain};
-use avalanche_window::{new_window_component, WindowComponent, WindowManager, WindowSystemPlugin};
+use avalanche_window::{new_window_component, WindowComponent, WindowManager, WindowSystemPlugin, WindowSystemSet};
 use avalanche_window::event::{WindowEventLoopClearedEvent, WindowResizedEvent};
 
 pub struct EngineContextSetupPlugin;
@@ -98,8 +98,8 @@ impl Plugin for EngineContextSetupPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(PostStartup, start_rendering_system_with_window);
         app.add_systems(Update, (
-            window_resize_handler,
-            window_event_loop_cleared.after(window_resize_handler),
+            window_resize_handler.after(WindowSystemSet::Update),
+            window_event_loop_cleared.after(window_resize_handler).after(WindowSystemSet::Update),
         ));
     }
 }

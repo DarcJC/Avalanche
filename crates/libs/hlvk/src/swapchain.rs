@@ -234,9 +234,10 @@ impl Swapchain {
         Ok(())
     }
 
-    fn next_semaphore(&mut self) -> Arc<Semaphore> {
+    fn next_semaphore(&mut self) -> Result<Arc<Semaphore>> {
         self.current_semaphores_index = (self.current_semaphores_index + 1) % self.images.len();
-        self.current_acquire_semaphore()
+        self.acquire_semaphores[self.current_semaphores_index] = Arc::new(Semaphore::new(self.device.clone())?);
+        Ok(self.current_acquire_semaphore())
     }
 
     pub fn current_acquire_semaphore(&self) -> Arc<Semaphore> {
@@ -245,7 +246,7 @@ impl Swapchain {
 
     pub fn acquire_next_image(&mut self, timeout: Duration, fence: Option<&Fence>) -> Result<AcquiredImage> {
         let timeout = timeout.as_nanos() as u64;
-        let semaphore = self.next_semaphore();
+        let semaphore = self.next_semaphore()?;
         let (index, is_suboptimal) = unsafe {
             self.inner.acquire_next_image(
                 self.swapchain_khr,

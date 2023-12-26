@@ -8,8 +8,7 @@ use std::cell::RefCell;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use bevy_app::{App, Plugin, Update};
-use bevy_ecs::prelude::{Component, EventReader, EventWriter, IntoSystemConfigs, Query, Resource, World};
-use log::debug;
+use bevy_ecs::prelude::{Component, EventReader, EventWriter, IntoSystemConfigs, Query, Resource, SystemSet, World};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{EventLoop, EventLoopBuilder};
 use winit::platform::pump_events::EventLoopExtPumpEvents;
@@ -18,6 +17,11 @@ use avalanche_hlvk::{Device, Surface, Swapchain};
 use avalanche_utils::ID_GENERATOR_32_STATIC;
 use crate::event::{WindowEventLoopClearedEvent, WindowResizedEvent, WinitWindowEvent};
 
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum WindowSystemSet {
+    EventLoop,
+    Update,
+}
 
 pub struct WindowSystemPlugin;
 
@@ -25,8 +29,12 @@ impl Plugin for WindowSystemPlugin {
     fn build(&self, app: &mut App) {
         app.init_non_send_resource::<WindowManager>();
         app.add_systems(Update, (
-            winit_event_poll_worker_system.before(window_update_system),
-            window_update_system,
+            winit_event_poll_worker_system
+                .before(window_update_system)
+                .in_set(WindowSystemSet::EventLoop)
+            ,
+            window_update_system
+                .in_set(WindowSystemSet::Update),
         ));
         app.add_event::<WinitWindowEvent>();
         app.add_event::<WindowResizedEvent>();
