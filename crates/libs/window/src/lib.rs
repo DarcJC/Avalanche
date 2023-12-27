@@ -8,7 +8,7 @@ use std::cell::RefCell;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use bevy_app::{App, Plugin, Update};
-use bevy_ecs::prelude::{Component, EventReader, EventWriter, IntoSystemConfigs, Query, Resource, SystemSet, World};
+use bevy_ecs::prelude::{Component, EventReader, EventWriter, IntoSystemConfigs, IntoSystemSetConfigs, Query, Resource, SystemSet, World};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{EventLoop, EventLoopBuilder};
 use winit::platform::pump_events::EventLoopExtPumpEvents;
@@ -28,6 +28,10 @@ pub struct WindowSystemPlugin;
 impl Plugin for WindowSystemPlugin {
     fn build(&self, app: &mut App) {
         app.init_non_send_resource::<WindowManager>();
+        app.configure_sets(Update, (WindowSystemSet::EventLoop, WindowSystemSet::Update).chain());
+        app.add_event::<WinitWindowEvent>();
+        app.add_event::<WindowResizedEvent>();
+        app.add_event::<WindowEventLoopClearedEvent>();
         app.add_systems(Update, (
             winit_event_poll_worker_system
                 .before(window_update_system)
@@ -36,10 +40,6 @@ impl Plugin for WindowSystemPlugin {
             window_update_system
                 .in_set(WindowSystemSet::Update),
         ));
-        app.add_event::<WinitWindowEvent>();
-        app.add_event::<WindowResizedEvent>();
-        app.add_event::<WindowEventLoopClearedEvent>();
-        app.configure_sets(Update, (WindowSystemSet::EventLoop, WindowSystemSet::Update).chain());
     }
 }
 

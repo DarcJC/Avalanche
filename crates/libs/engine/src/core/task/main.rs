@@ -6,7 +6,6 @@ use bevy_app::{App, Plugin, PluginGroup, PluginGroupBuilder, PostStartup, PreSta
 use bevy_ecs::prelude::{EventReader, IntoSystemConfigs, Query, Res, Resource, World};
 use chrono::Local;
 use ash::vk;
-use bevy_ecs::system::NonSend;
 use env_logger::Env;
 use log::warn;
 use avalanche_hlvk::{CommandBuffer, CommandPool, Context, ContextBuilder, DeviceFeatures, Swapchain};

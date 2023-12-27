@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::time::Duration;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Error, Result};
 use ash::extensions::khr::Swapchain as AshSwapchain;
 use ash::vk;
 use log::debug;
@@ -299,9 +299,15 @@ impl Swapchain {
             .swapchains(&swapchains)
             .image_indices(&images_indices);
 
-        let result = unsafe { self.inner.queue_present(queue.inner, &present_info)? };
-
-        Ok(result)
+        match unsafe { self.inner.queue_present(queue.inner, &present_info) } {
+            Ok(result) => Ok(result),
+            Err(err)
+            if err == vk::Result::ERROR_OUT_OF_DATE_KHR || err == vk::Result::SUBOPTIMAL_KHR =>
+            {
+                Ok(false)
+            }
+            Err(err) => Err(Error::from(err))
+        }
     }
 
     fn destroy(&mut self) {
