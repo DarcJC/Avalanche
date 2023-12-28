@@ -12,3 +12,4 @@ ash-window.workspace = true
 raw-window-handle.workspace = true
 avalanche-utils.workspace = true
 gpu-allocator.workspace = true
+derive_builder.workspace = true

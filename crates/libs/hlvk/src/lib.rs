@@ -15,6 +15,10 @@ mod buffer;
 mod descriptor;
 mod command;
 mod swapchain;
+mod raster;
+mod raytracing;
+mod shader;
+mod layout;
 
 pub use instance::*;
 pub use util::*;
@@ -31,3 +35,6 @@ pub use buffer::*;
 pub use descriptor::*;
 pub use command::*;
 pub use swapchain::*;
+pub use raster::*;
+pub use raytracing::*;
+pub use shader::*;
