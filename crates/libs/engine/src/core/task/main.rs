@@ -1,18 +1,30 @@
 use std::io::Write;
 use std::ops::Deref;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use bevy_app::{App, Plugin, PluginGroup, PluginGroupBuilder, PostStartup, PreStartup, Update};
-use bevy_ecs::prelude::{EventReader, IntoSystemConfigs, Query, Res, Resource, World};
+use bevy_ecs::prelude::{EventReader, IntoSystemConfigs, IntoSystemSetConfigs, Query, Res, Resource, SystemSet, World};
 use chrono::Local;
 use ash::vk;
+use bevy_ecs::event::EventWriter;
 use env_logger::Env;
 use log::warn;
-use avalanche_hlvk::{CommandBuffer, CommandPool, Context, ContextBuilder, DeviceFeatures, Swapchain};
+use avalanche_hlvk::{CommandBuffer, CommandPool, Context, ContextBuilder, DeviceFeatures, Fence, Semaphore, Swapchain};
 use avalanche_window::{new_window_component, WindowComponent, WindowManager, WindowSystemPlugin, WindowSystemSet};
 use avalanche_window::event::{WindowEventLoopClearedEvent, WindowResizedEvent};
+use crate::core::event::BeginRenderWindowViewEvent;
 
 pub struct EngineContextSetupPlugin;
+
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RenderingSystemSet {
+    Notify,
+    CollectCommand,
+    BeforeSubmit,
+    Submit,
+    AfterSubmit,
+    Present,
+}
 
 #[derive(Resource)]
 pub struct RenderingContext {
@@ -66,6 +78,9 @@ fn start_rendering_system_with_window(world: &mut World) {
     world.spawn(first_window_component);
 }
 
+fn test_rendering(context: Res<RenderingContext>) {
+}
+
 fn window_resize_handler(mut event_reader: EventReader<WindowResizedEvent>, windows: Query<&WindowComponent>, rendering_context: Res<RenderingContext>) {
     event_reader.read().for_each(|evt|  {
         if let Some(window) = windows
@@ -79,7 +94,8 @@ fn window_resize_handler(mut event_reader: EventReader<WindowResizedEvent>, wind
     })
 }
 
-fn window_event_loop_cleared(mut event_reader: EventReader<WindowEventLoopClearedEvent>, windows: Query<&WindowComponent>, rendering_context: Res<RenderingContext>) {
+fn window_event_loop_cleared(mut event_reader: EventReader<WindowEventLoopClearedEvent>, mut event_sender: EventWriter<BeginRenderWindowViewEvent>, windows: Query<&WindowComponent>, rendering_context: Res<RenderingContext>) {
+    // TODO: must be sure to run once pre frame
     if event_reader.read().is_empty() {
         return;
     }
@@ -87,18 +103,45 @@ fn window_event_loop_cleared(mut event_reader: EventReader<WindowEventLoopCleare
         .iter()
         .for_each(|window| {
             let mut swapchain = window.swapchain.as_ref().unwrap().write().unwrap();
-            // TODO: catch exception
-            let next_image = swapchain.acquire_next_image(Duration::from_secs_f64(0.33), None).unwrap();
-            swapchain.queue_present(next_image.index, &[], &rendering_context.context.present_queue).unwrap();
+
+            let window_id = window.id.clone();
+            let frame_finish_semaphore = Arc::new(Semaphore::new(rendering_context.context.device.clone()).unwrap());
+            let image_acquire_semaphore = swapchain.current_acquire_semaphore();
+            let window_image = swapchain.acquire_next_image(Duration::from_secs_f64(0.33), None).unwrap();
+            let working_fence = Arc::new(Fence::new(rendering_context.context.device.clone(), None).unwrap());
+
+            event_sender.send(BeginRenderWindowViewEvent {
+                window_id,
+                frame_finish_semaphore: frame_finish_semaphore.clone(),
+                image_acquire_semaphore: image_acquire_semaphore.clone(),
+                window_image,
+                working_fence,
+            });
+
+            swapchain.queue_present(window_image.index, &[frame_finish_semaphore.as_ref()], &rendering_context.context.present_queue).unwrap();
         });
 }
 
 impl Plugin for EngineContextSetupPlugin {
     fn build(&self, app: &mut App) {
+        app.configure_sets(Update, (
+                WindowSystemSet::EventLoop,
+                WindowSystemSet::Update,
+                RenderingSystemSet::Notify,
+                RenderingSystemSet::CollectCommand,
+                RenderingSystemSet::BeforeSubmit,
+                RenderingSystemSet::Submit,
+                RenderingSystemSet::AfterSubmit,
+                RenderingSystemSet::Present,
+            ).chain());
         app.add_systems(PostStartup, start_rendering_system_with_window);
         app.add_systems(Update, (
-            window_resize_handler.after(WindowSystemSet::Update),
-            window_event_loop_cleared.after(window_resize_handler).after(WindowSystemSet::Update),
+            window_resize_handler
+                .after(WindowSystemSet::Update),
+            window_event_loop_cleared
+                .after(window_resize_handler)
+                .after(WindowSystemSet::Update)
+                .in_set(RenderingSystemSet::Notify),
         ));
     }
 }

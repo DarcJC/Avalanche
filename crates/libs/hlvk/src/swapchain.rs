@@ -6,6 +6,7 @@ use ash::vk;
 use log::debug;
 use crate::{Context, Device, Fence, Image, ImageView, Queue, Semaphore};
 
+#[derive(Debug, Copy, Clone)]
 pub struct AcquiredImage {
     pub index: u32,
     pub is_suboptimal: bool,

@@ -6,7 +6,7 @@ use crate::{Context, Device};
 /// Semaphore is for ordering gpu tasks
 pub struct Semaphore {
     device: Arc<Device>,
-    pub(crate) inner: vk::Semaphore,
+    pub inner: vk::Semaphore,
 }
 
 impl Semaphore {
