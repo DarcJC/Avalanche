@@ -3,13 +3,15 @@ use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use bevy_app::{App, Plugin, PluginGroup, PluginGroupBuilder, PostStartup, PreStartup, Update};
-use bevy_ecs::prelude::{EventReader, IntoSystemConfigs, IntoSystemSetConfigs, Query, Res, Resource, SystemSet, World};
+use bevy_ecs::prelude::{EventReader, IntoSystemConfigs, IntoSystemSetConfigs, Query, Res, SystemSet, World};
 use chrono::Local;
 use ash::vk;
 use bevy_ecs::event::EventWriter;
 use env_logger::Env;
 use log::warn;
-use avalanche_hlvk::{CommandBuffer, CommandPool, Context, ContextBuilder, DeviceFeatures, Fence, Semaphore, Swapchain};
+use avalanche_hlvk::{ContextBuilder, DeviceFeatures, Fence, Semaphore, Swapchain};
+use avalanche_rendering::preclude::RenderingContext;
+use avalanche_rendering::RenderingPipelinePlugin;
 use avalanche_window::{new_window_component, WindowComponent, WindowManager, WindowSystemPlugin, WindowSystemSet};
 use avalanche_window::event::{WindowEventLoopClearedEvent, WindowResizedEvent};
 use crate::core::event::BeginRenderWindowViewEvent;
@@ -18,19 +20,8 @@ pub struct EngineContextSetupPlugin;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RenderingSystemSet {
+    /// Notified to start rendering
     Notify,
-    CollectCommand,
-    BeforeSubmit,
-    Submit,
-    AfterSubmit,
-    Present,
-}
-
-#[derive(Resource)]
-pub struct RenderingContext {
-    pub context: Context,
-    pub command_pool: CommandPool,
-    pub swapchain_command_buffer: Vec<CommandBuffer>,
 }
 
 /// Exclusive system to force schedule in main thread
@@ -76,9 +67,6 @@ fn start_rendering_system_with_window(world: &mut World) {
 
     world.insert_resource(context);
     world.spawn(first_window_component);
-}
-
-fn test_rendering(context: Res<RenderingContext>) {
 }
 
 fn window_resize_handler(mut event_reader: EventReader<WindowResizedEvent>, windows: Query<&WindowComponent>, rendering_context: Res<RenderingContext>) {
@@ -128,21 +116,18 @@ impl Plugin for EngineContextSetupPlugin {
                 WindowSystemSet::EventLoop,
                 WindowSystemSet::Update,
                 RenderingSystemSet::Notify,
-                RenderingSystemSet::CollectCommand,
-                RenderingSystemSet::BeforeSubmit,
-                RenderingSystemSet::Submit,
-                RenderingSystemSet::AfterSubmit,
-                RenderingSystemSet::Present,
             ).chain());
         app.add_systems(PostStartup, start_rendering_system_with_window);
         app.add_systems(Update, (
             window_resize_handler
-                .after(WindowSystemSet::Update),
+                .after(WindowSystemSet::Update)
+                .before(RenderingSystemSet::Notify),
             window_event_loop_cleared
                 .after(window_resize_handler)
                 .after(WindowSystemSet::Update)
                 .in_set(RenderingSystemSet::Notify),
         ));
+        app.add_event::<BeginRenderWindowViewEvent>();
     }
 }
 
@@ -178,6 +163,7 @@ impl PluginGroup for MainTaskPluginGroup {
             .add(LogSystemPlugin)
             .add(WindowSystemPlugin)
             .add(EngineContextSetupPlugin)
+            .add(RenderingPipelinePlugin)
     }
 }
 

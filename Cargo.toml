@@ -19,6 +19,7 @@ avalanche-utils = { path = "crates/libs/utils" }
 avalanche-hlvk = { path = "crates/libs/hlvk" }
 avalanche-window = { path = "crates/libs/window" }
 avalanche-engine = { path = "crates/libs/engine" }
+avalanche-rendering = { path = "crates/libs/rendering" }
 ash-window = { path = "crates/libs/ash_window" }
 
 log = "0.4"

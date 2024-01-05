@@ -329,6 +329,7 @@ dependencies = [
  "anyhow",
  "ash",
  "avalanche-hlvk",
+ "avalanche-rendering",
  "avalanche-utils",
  "avalanche-window",
  "bevy_app",
@@ -354,6 +355,26 @@ dependencies = [
  "gpu-allocator",
  "log",
  "raw-window-handle",
+]
+
+[[package]]
+name = "avalanche-rendering"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ash",
+ "avalanche-hlvk",
+ "avalanche-utils",
+ "avalanche-window",
+ "bevy_app",
+ "bevy_core",
+ "bevy_ecs",
+ "bevy_reflect",
+ "bevy_reflect_derive",
+ "bevy_time",
+ "chrono",
+ "env_logger",
+ "log",
 ]
 
 [[package]]
