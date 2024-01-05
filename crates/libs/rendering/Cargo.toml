@@ -14,8 +14,12 @@ bevy_reflect_derive.workspace = true
 bevy_app.workspace = true
 bevy_core.workspace = true
 bevy_time.workspace = true
+bevy_utils.workspace = true
 avalanche-window.workspace = true
 avalanche-hlvk.workspace = true
 avalanche-utils.workspace = true
 chrono.workspace = true
 anyhow.workspace = true
+
+[features]
+trace = []

@@ -11,18 +11,12 @@ use env_logger::Env;
 use log::warn;
 use avalanche_hlvk::{ContextBuilder, DeviceFeatures, Fence, Semaphore, Swapchain};
 use avalanche_rendering::preclude::RenderingContext;
-use avalanche_rendering::RenderingPipelinePlugin;
+use avalanche_rendering::{RenderingPipelinePlugin, RenderSet};
 use avalanche_window::{new_window_component, WindowComponent, WindowManager, WindowSystemPlugin, WindowSystemSet};
 use avalanche_window::event::{WindowEventLoopClearedEvent, WindowResizedEvent};
 use crate::core::event::BeginRenderWindowViewEvent;
 
 pub struct EngineContextSetupPlugin;
-
-#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum RenderingSystemSet {
-    /// Notified to start rendering
-    Notify,
-}
 
 /// Exclusive system to force schedule in main thread
 fn start_rendering_system_with_window(world: &mut World) {
@@ -70,6 +64,9 @@ fn start_rendering_system_with_window(world: &mut World) {
 }
 
 fn window_resize_handler(mut event_reader: EventReader<WindowResizedEvent>, windows: Query<&WindowComponent>, rendering_context: Res<RenderingContext>) {
+    #[cfg(feature = "trace")]
+    let _span = bevy_utils::tracing::info_span!("window swapchain recreated").entered();
+
     event_reader.read().for_each(|evt|  {
         if let Some(window) = windows
             .iter()
@@ -83,31 +80,13 @@ fn window_resize_handler(mut event_reader: EventReader<WindowResizedEvent>, wind
 }
 
 fn window_event_loop_cleared(mut event_reader: EventReader<WindowEventLoopClearedEvent>, mut event_sender: EventWriter<BeginRenderWindowViewEvent>, windows: Query<&WindowComponent>, rendering_context: Res<RenderingContext>) {
+    #[cfg(feature = "trace")]
+    let _span = bevy_utils::tracing::info_span!("window present queued").entered();
+
     // TODO: must be sure to run once pre frame
     if event_reader.read().is_empty() {
         return;
     }
-    windows
-        .iter()
-        .for_each(|window| {
-            let mut swapchain = window.swapchain.as_ref().unwrap().write().unwrap();
-
-            let window_id = window.id.clone();
-            let frame_finish_semaphore = Arc::new(Semaphore::new(rendering_context.context.device.clone()).unwrap());
-            let image_acquire_semaphore = swapchain.current_acquire_semaphore();
-            let window_image = swapchain.acquire_next_image(Duration::from_secs_f64(0.33), None).unwrap();
-            let working_fence = Arc::new(Fence::new(rendering_context.context.device.clone(), None).unwrap());
-
-            event_sender.send(BeginRenderWindowViewEvent {
-                window_id,
-                frame_finish_semaphore: frame_finish_semaphore.clone(),
-                image_acquire_semaphore: image_acquire_semaphore.clone(),
-                window_image,
-                working_fence,
-            });
-
-            swapchain.queue_present(window_image.index, &[frame_finish_semaphore.as_ref()], &rendering_context.context.present_queue).unwrap();
-        });
 }
 
 impl Plugin for EngineContextSetupPlugin {
@@ -115,17 +94,17 @@ impl Plugin for EngineContextSetupPlugin {
         app.configure_sets(Update, (
                 WindowSystemSet::EventLoop,
                 WindowSystemSet::Update,
-                RenderingSystemSet::Notify,
+                RenderSet::Notify,
             ).chain());
         app.add_systems(PostStartup, start_rendering_system_with_window);
         app.add_systems(Update, (
             window_resize_handler
                 .after(WindowSystemSet::Update)
-                .before(RenderingSystemSet::Notify),
+                .before(RenderSet::Notify),
             window_event_loop_cleared
                 .after(window_resize_handler)
                 .after(WindowSystemSet::Update)
-                .in_set(RenderingSystemSet::Notify),
+                .in_set(RenderSet::Notify),
         ));
         app.add_event::<BeginRenderWindowViewEvent>();
     }
@@ -133,7 +112,7 @@ impl Plugin for EngineContextSetupPlugin {
 
 pub struct LogSystemPlugin;
 
-fn init_env_logger() {
+fn _init_env_logger() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info"))
         .format(|buf, record| {
             writeln!(
@@ -151,7 +130,8 @@ fn init_env_logger() {
 
 impl Plugin for LogSystemPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PreStartup, init_env_logger);
+        use bevy_log::LogPlugin;
+        app.add_plugins(LogPlugin::default());
     }
 }
 
@@ -159,11 +139,13 @@ pub struct MainTaskPluginGroup;
 
 impl PluginGroup for MainTaskPluginGroup {
     fn build(self) -> PluginGroupBuilder {
-        PluginGroupBuilder::start::<Self>()
+        let mut builder = PluginGroupBuilder::start::<Self>()
             .add(LogSystemPlugin)
             .add(WindowSystemPlugin)
             .add(EngineContextSetupPlugin)
-            .add(RenderingPipelinePlugin)
+            .add(RenderingPipelinePlugin);
+
+        builder
     }
 }
 

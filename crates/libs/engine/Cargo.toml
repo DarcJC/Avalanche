@@ -16,9 +16,17 @@ bevy_reflect_derive.workspace = true
 bevy_app.workspace = true
 bevy_core.workspace = true
 bevy_time.workspace = true
+bevy_log.workspace = true
+bevy_utils.workspace = true
 avalanche-window.workspace = true
 avalanche-hlvk.workspace = true
 avalanche-utils.workspace = true
 avalanche-rendering.workspace = true
 chrono.workspace = true
 anyhow.workspace = true
+
+[features]
+default = []
+trace = ["bevy_app/trace", "bevy_ecs/trace", "bevy_log/trace", "avalanche-rendering/trace", "avalanche-window/trace"]
+trace_chrome = ["bevy_log/tracing-chrome"]
+trace_tracy = ["bevy_log/tracing-tracy", "bevy_log/trace_tracy_memory"]

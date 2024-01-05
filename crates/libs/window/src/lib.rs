@@ -93,6 +93,9 @@ pub fn new_window_component(event_loop: &EventLoop<()>) -> anyhow::Result<Window
 }
 
 fn winit_event_poll_worker_system(world: &mut World) {
+    #[cfg(feature = "trace")]
+    let _span = bevy_utils::tracing::info_span!("poll winit event loop").entered();
+
     let window_manager = world.get_non_send_resource_mut::<WindowManager>().unwrap();
     let mut evt_window = None;
     let mut evt_wait = None;
@@ -125,6 +128,9 @@ fn winit_event_poll_worker_system(world: &mut World) {
 }
 
 fn window_update_system(mut event_reader: EventReader<WinitWindowEvent>, mut event_writer: EventWriter<WindowResizedEvent>, windows: Query<&WindowComponent>) {
+    #[cfg(feature = "trace")]
+    let _span = bevy_utils::tracing::info_span!("handle window event").entered();
+
     event_reader.read().for_each(|evt| {
         if let Some(window) = windows
             .iter()

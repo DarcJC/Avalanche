@@ -10,3 +10,8 @@ authors.workspace = true
 async-std.workspace = true
 avalanche-window.workspace = true
 avalanche-engine.workspace = true
+
+[features]
+trace = ["avalanche-engine/trace"]
+trace_chrome = ["avalanche-engine/trace_chrome"]
+trace_tracy = ["avalanche-engine/trace_tracy"]

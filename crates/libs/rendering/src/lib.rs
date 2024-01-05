@@ -7,6 +7,7 @@ use bevy_ecs::world::World;
 mod extract;
 pub mod context;
 pub mod preclude;
+mod present;
 
 
 /// Schedule which extract data from the main world and inserts it into the render world.
@@ -25,6 +26,9 @@ pub struct ExtractSchedule;
 /// These can be useful for ordering, but you almost never want to add your systems to these sets.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub enum RenderSet {
+    /// Using to sort with window system
+    /// as we want to perform rendering after game logics.
+    Notify,
     /// This is used for applying the commands from the [`ExtractSchedule`]
     ExtractCommands,
     /// Prepare assets that have been created/modified/removed this frame.
@@ -158,6 +162,9 @@ unsafe fn initialize_render_app(app: &mut App) {
     render_app.insert_resource(sender);
 
     app.insert_sub_app(RenderApp, SubApp::new(render_app, move |main_world, render_app| {
+        #[cfg(feature = "trace")]
+            let _span = bevy_utils::tracing::info_span!("rendering extract ticked").entered();
+
         // reserve all existing main world entities for use in render_app
         // they can only be spawned using `get_or_spawn()`
         let total_count = main_world.entities().total_count();

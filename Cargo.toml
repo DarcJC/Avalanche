@@ -43,6 +43,8 @@ bevy_reflect_derive = "0.12.1"
 bevy_app = { version = "0.12.1", features = ["bevy_reflect"] }
 bevy_core = { version = "0.12.1", features = [] }
 bevy_time = { version = "0.12.1", features = ["default"] }
+bevy_utils = { version = "0.12.1", features = [] }
+bevy_log = { version = "0.12.1", features = [] }
 
 nalgebra = "0.32"
 derive_builder = "0.12.0"
