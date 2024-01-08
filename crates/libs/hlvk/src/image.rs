@@ -121,6 +121,20 @@ impl Image {
             inner,
         })
     }
+
+    pub fn clone_external(&self) -> Self {
+        assert!(self.is_external_referenced, "Only external referenced Image can be clone. Use Arc<Image> instead.");
+        assert!(self.allocation.is_none(), "Allocation of external referenced Image should be None.");
+        Self {
+            device: self.device.clone(),
+            allocator: self.allocator.clone(),
+            inner: self.inner.clone(),
+            allocation: None,
+            format: self.format,
+            extent: self.extent,
+            is_external_referenced: true,
+        }
+    }
 }
 
 impl Context {

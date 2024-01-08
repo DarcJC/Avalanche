@@ -3,12 +3,15 @@ use bevy_app::{App, AppLabel, Plugin, SubApp};
 use bevy_ecs::prelude::{IntoSystemConfigs, IntoSystemSetConfigs, Resource, Schedule, SystemSet};
 use bevy_ecs::schedule::ScheduleLabel;
 use bevy_ecs::world::World;
+use crate::extract::{extract_rendering_context, release_referenced_rendering_context};
+use crate::mock::clear_screen_color;
 use crate::present::{cleanup_frames_in_flight, create_frame_in_flight};
 
 mod extract;
 pub mod context;
 pub mod preclude;
 mod present;
+mod mock;
 
 
 /// Schedule which extract data from the main world and inserts it into the render world.
@@ -154,13 +157,18 @@ unsafe fn initialize_render_app(app: &mut App) {
         .add_schedule(Render::base_schedule())
         .add_systems(
             ExtractSchedule, (
+                extract_rendering_context.before(create_frame_in_flight),
                 create_frame_in_flight,
             ),
+        )
+        .add_systems(
+            Render, (clear_screen_color.in_set(RenderSet::Render),)
         )
         .add_systems(
             Render, (
                 World::clear_entities.in_set(RenderSet::Cleanup),
                 cleanup_frames_in_flight.in_set(RenderSet::Cleanup),
+                release_referenced_rendering_context.in_set(RenderSet::Cleanup).after(cleanup_frames_in_flight),
             ),
         );
 
@@ -170,7 +178,7 @@ unsafe fn initialize_render_app(app: &mut App) {
 
     app.insert_sub_app(RenderApp, SubApp::new(render_app, move |main_world, render_app| {
         #[cfg(feature = "trace")]
-            let _span = bevy_utils::tracing::info_span!("rendering extract ticked").entered();
+        let _span = bevy_utils::tracing::info_span!("rendering extract ticked").entered();
 
         // reserve all existing main world entities for use in render_app
         // they can only be spawned using `get_or_spawn()`

@@ -1,15 +1,14 @@
 use std::io::Write;
 use std::ops::Deref;
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
-use bevy_app::{App, Plugin, PluginGroup, PluginGroupBuilder, PostStartup, PreStartup, Update};
-use bevy_ecs::prelude::{EventReader, IntoSystemConfigs, IntoSystemSetConfigs, Query, Res, SystemSet, World};
+use bevy_app::{App, Plugin, PluginGroup, PluginGroupBuilder, Update};
+use bevy_ecs::prelude::{EventReader, IntoSystemConfigs, IntoSystemSetConfigs, Query, Res, World};
 use chrono::Local;
 use ash::vk;
 use bevy_ecs::event::EventWriter;
 use env_logger::Env;
 use log::warn;
-use avalanche_hlvk::{ContextBuilder, DeviceFeatures, Fence, Semaphore, Swapchain};
+use avalanche_hlvk::{ContextBuilder, DeviceFeatures, Swapchain};
 use avalanche_rendering::preclude::RenderingContext;
 use avalanche_rendering::{RenderingPipelinePlugin, RenderSet};
 use avalanche_window::{new_window_component, WindowComponent, WindowManager, WindowSystemPlugin, WindowSystemSet};
@@ -54,9 +53,9 @@ fn start_rendering_system_with_window(world: &mut World) {
     first_window_component.swapchain = Some(RwLock::new(swapchain));
 
     let context = RenderingContext {
-        context: vulkan_context,
-        command_pool,
-        swapchain_command_buffer: command_buffers,
+        context: Arc::new(vulkan_context),
+        command_pool: Arc::new(command_pool),
+        swapchain_command_buffer: Arc::new(command_buffers),
     };
 
     world.insert_resource(context);
@@ -79,7 +78,7 @@ fn window_resize_handler(mut event_reader: EventReader<WindowResizedEvent>, wind
     })
 }
 
-fn window_event_loop_cleared(mut event_reader: EventReader<WindowEventLoopClearedEvent>, mut event_sender: EventWriter<BeginRenderWindowViewEvent>, windows: Query<&WindowComponent>, rendering_context: Res<RenderingContext>) {
+fn window_event_loop_cleared(mut event_reader: EventReader<WindowEventLoopClearedEvent>, _event_sender: EventWriter<BeginRenderWindowViewEvent>, _windows: Query<&WindowComponent>, _rendering_context: Res<RenderingContext>) {
     #[cfg(feature = "trace")]
     let _span = bevy_utils::tracing::info_span!("window present queued").entered();
 
@@ -96,7 +95,7 @@ impl Plugin for EngineContextSetupPlugin {
                 WindowSystemSet::Update,
                 RenderSet::Notify,
             ).chain());
-        app.add_systems(PostStartup, start_rendering_system_with_window);
+        // app.add_systems(PostStartup, start_rendering_system_with_window);
         app.add_systems(Update, (
             window_resize_handler
                 .after(WindowSystemSet::Update)
@@ -107,6 +106,7 @@ impl Plugin for EngineContextSetupPlugin {
                 .in_set(RenderSet::Notify),
         ));
         app.add_event::<BeginRenderWindowViewEvent>();
+        start_rendering_system_with_window(&mut app.world);
     }
 }
 
@@ -139,7 +139,7 @@ pub struct MainTaskPluginGroup;
 
 impl PluginGroup for MainTaskPluginGroup {
     fn build(self) -> PluginGroupBuilder {
-        let mut builder = PluginGroupBuilder::start::<Self>()
+        let builder = PluginGroupBuilder::start::<Self>()
             .add(LogSystemPlugin)
             .add(WindowSystemPlugin)
             .add(EngineContextSetupPlugin)
