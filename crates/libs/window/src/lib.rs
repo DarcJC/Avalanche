@@ -103,7 +103,7 @@ fn winit_event_poll_worker_system(world: &mut World) {
         .event_loop
         .borrow_mut()
         .pump_events(
-            Some(Duration::from_secs_f64(0.33)),
+            Some(Duration::ZERO),
             |event, event_target| {
                     match event {
                         Event::WindowEvent {
