@@ -139,11 +139,16 @@ pub struct MainTaskPluginGroup;
 
 impl PluginGroup for MainTaskPluginGroup {
     fn build(self) -> PluginGroupBuilder {
-        let builder = PluginGroupBuilder::start::<Self>()
+        let mut builder = PluginGroupBuilder::start::<Self>()
             .add(LogSystemPlugin)
             .add(WindowSystemPlugin)
             .add(EngineContextSetupPlugin)
             .add(RenderingPipelinePlugin);
+
+        #[cfg(feature = "renderdoc")]
+        {
+            builder = builder.add(crate::extra::renderdoc::RenderDocPlugin);
+        }
 
         builder
     }

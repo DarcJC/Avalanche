@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/libs/*",
+    "crates/extra/*",
     "app",
 ]
 resolver = "2"
@@ -20,7 +21,8 @@ avalanche-hlvk = { path = "crates/libs/hlvk" }
 avalanche-window = { path = "crates/libs/window" }
 avalanche-engine = { path = "crates/libs/engine" }
 avalanche-rendering = { path = "crates/libs/rendering" }
-ash-window = { path = "crates/libs/ash_window" }
+ash-window = { path = "crates/extra/ash_window" }
+renderdoc = { path = "crates/extra/renderdoc" }
 
 log = "0.4"
 env_logger = "0.10.1"
@@ -33,6 +35,7 @@ async-trait = "0.1.74"
 anyhow = "1.0.75"
 chrono = "0.4.31"
 bitflags = "2.4.1"
+arc-swap = "1.6.0"
 
 syn = { version = "2.0", features = ["full"] }
 quote = "1.0"

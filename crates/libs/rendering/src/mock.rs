@@ -1,3 +1,4 @@
+use std::time::Duration;
 use ash::vk;
 use bevy_ecs::prelude::Res;
 use avalanche_hlvk::SemaphoreSubmitInfo;
@@ -23,4 +24,8 @@ pub(crate) fn clear_screen_color(context: Res<RenderingContext>, frames_in_fligh
         semaphore: frame.frame_finish_semaphore.as_ref(),
         stage_mask: vk::PipelineStageFlags2::ALL_GRAPHICS,
     }), frame.working_fence.as_ref()).unwrap();
+
+    command_buffer.reset().unwrap();
+    frame.working_fence.wait(Some(Duration::from_secs_f32(0.33))).unwrap();
+    frame.working_fence.reset().unwrap();
 }
