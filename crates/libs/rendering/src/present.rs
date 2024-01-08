@@ -47,7 +47,8 @@ pub(crate) fn create_frame_in_flight(render_world: &mut World) {
 
             frames_in_flight.push(frame);
 
-            swapchain.queue_present(window_image.index, &[frame_finish_semaphore.as_ref()], &rendering_context.context.present_queue).unwrap();
+            // Present frame after image is ready and frame rendered
+            swapchain.queue_present(window_image.index, &[image_acquire_semaphore.as_ref(), frame_finish_semaphore.as_ref()], &rendering_context.context.present_queue).unwrap();
         });
 
     main_world.insert_resource(FramesInFlight(frames_in_flight));

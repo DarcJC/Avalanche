@@ -3,6 +3,7 @@ use bevy_app::{App, AppLabel, Plugin, SubApp};
 use bevy_ecs::prelude::{IntoSystemConfigs, IntoSystemSetConfigs, Resource, Schedule, SystemSet};
 use bevy_ecs::schedule::ScheduleLabel;
 use bevy_ecs::world::World;
+use crate::present::{cleanup_frames_in_flight, create_frame_in_flight};
 
 mod extract;
 pub mod context;
@@ -152,8 +153,14 @@ unsafe fn initialize_render_app(app: &mut App) {
         .add_schedule(extract_schedule)
         .add_schedule(Render::base_schedule())
         .add_systems(
+            ExtractSchedule, (
+                create_frame_in_flight,
+            ),
+        )
+        .add_systems(
             Render, (
                 World::clear_entities.in_set(RenderSet::Cleanup),
+                cleanup_frames_in_flight.in_set(RenderSet::Cleanup),
             ),
         );
 
