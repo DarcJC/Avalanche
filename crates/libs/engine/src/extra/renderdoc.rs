@@ -3,6 +3,7 @@ use arc_swap::ArcSwap;
 use bevy_app::{App, Plugin};
 use bevy_ecs::prelude::Resource;
 use bevy_log::{info, warn};
+use renderdoc::CaptureOption::AllowFullscreen;
 
 #[cfg(feature = "renderdoc")]
 type RenderDocApiVersion = renderdoc::V141;
@@ -43,10 +44,20 @@ impl Plugin for RenderDocPlugin {
         #[cfg(feature = "renderdoc")]
         {
             use renderdoc::Version;
+            use renderdoc::CaptureOption::*;
 
             let result = RdV::new();
             if result.is_ok() {
-                let instance = result.unwrap();
+                let mut instance = result.unwrap();
+                instance.set_capture_option_u32(AllowFullscreen, 1);
+                instance.set_capture_option_u32(ApiValidation, 1);
+                instance.set_capture_option_u32(CaptureCallstacks, 1);
+                instance.set_capture_option_u32(CaptureCallstacksOnlyDraws, 1);
+                instance.set_capture_option_u32(HookIntoChildren, 1);
+                instance.set_capture_option_u32(CaptureAllCmdLists, 1);
+                instance.set_capture_option_u32(DebugOutputMute, 1);
+                instance.set_capture_option_u32(AllowUnsupportedVendorExtensions, 1);
+
                 app.world.insert_resource(RenderDoc::new(instance));
                 info!("Connected to RenderDoc api (version: {:?}).", RenderDocApiVersion::VERSION);
             } else {
