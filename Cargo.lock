@@ -405,6 +405,7 @@ name = "avalanche-rendering"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "ash",
  "avalanche-hlvk",
  "avalanche-utils",
@@ -412,6 +413,7 @@ dependencies = [
  "bevy_app",
  "bevy_core",
  "bevy_ecs",
+ "bevy_log",
  "bevy_reflect",
  "bevy_reflect_derive",
  "bevy_time",
@@ -419,6 +421,7 @@ dependencies = [
  "chrono",
  "env_logger",
  "log",
+ "renderdoc",
 ]
 
 [[package]]

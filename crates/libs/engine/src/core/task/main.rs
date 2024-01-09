@@ -147,7 +147,7 @@ impl PluginGroup for MainTaskPluginGroup {
 
         #[cfg(feature = "renderdoc")]
         {
-            builder = builder.add(crate::extra::renderdoc::RenderDocPlugin);
+            builder = builder.add(avalanche_rendering::preclude::renderdoc::RenderDocPlugin);
         }
 
         builder

@@ -3,7 +3,6 @@ use arc_swap::ArcSwap;
 use bevy_app::{App, Plugin};
 use bevy_ecs::prelude::Resource;
 use bevy_log::{info, warn};
-use renderdoc::CaptureOption::AllowFullscreen;
 
 #[cfg(feature = "renderdoc")]
 type RenderDocApiVersion = renderdoc::V141;
