@@ -1,8 +1,8 @@
-use std::sync::Arc;
-use arc_swap::ArcSwap;
+use std::sync::{Arc, RwLock};
 use bevy_app::{App, Plugin};
-use bevy_ecs::prelude::Resource;
+use bevy_ecs::prelude::{Resource, World};
 use bevy_log::{info, warn};
+use crate::{ExtractSchedule, MainWorld};
 
 #[cfg(feature = "renderdoc")]
 type RenderDocApiVersion = renderdoc::V141;
@@ -12,22 +12,22 @@ type RdV = renderdoc::RenderDoc<RenderDocApiVersion>;
 /// A wrapper for [renderdoc::RenderDoc] instance.
 ///
 /// ## SAFETY
-/// Using [ArcSwap] to protect [renderdoc::RenderDoc] from being sharing in different threads.
+/// Using [RwLock] to protect [renderdoc::RenderDoc] from being sharing in different threads.
 ///
-/// Using [ArcSwap] to protect [renderdoc::RenderDoc] from being transferring in different threads.
+/// Using [Arc] to protect [renderdoc::RenderDoc] from being transferring in different threads.
 ///
 /// [Arc] will keeping [RenderDoc] valid until all references are released.
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub struct RenderDoc {
     #[cfg(feature = "renderdoc")]
-    pub inner: ArcSwap<RdV>,
+    pub inner: Arc<RwLock<RdV>>,
 }
 
 impl RenderDoc {
     #[cfg(feature = "renderdoc")]
     pub(crate) fn new(rd: RdV) -> Self {
         Self {
-            inner: ArcSwap::new(Arc::new(rd)),
+            inner: Arc::new(RwLock::new(rd)),
         }
     }
 }
@@ -59,10 +59,22 @@ impl Plugin for RenderDocPlugin {
 
                 app.world.insert_resource(RenderDoc::new(instance));
                 info!("Connected to RenderDoc api (version: {:?}).", RenderDocApiVersion::VERSION);
+
+                app
+                    .add_systems(ExtractSchedule, (
+                        extract_to_render_app,
+                    ));
             } else {
                 warn!("Failed to connect to RenderDoc api (supported version: {:?}).", RenderDocApiVersion::VERSION);
                 warn!("Result: {}", result.unwrap_err());
             }
         }
     }
+}
+
+fn extract_to_render_app(render_world: &mut World) {
+    let main_world = render_world.resource::<MainWorld>();
+    let renderdoc = main_world.get_resource::<RenderDoc>().unwrap();
+    let renderdoc = renderdoc.clone();
+    render_world.insert_resource(renderdoc);
 }
