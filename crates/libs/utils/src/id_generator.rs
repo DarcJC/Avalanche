@@ -70,3 +70,29 @@ macro_rules! define_atomic_id {
         }
     };
 }
+
+#[macro_export]
+macro_rules! define_atomic_id_usize {
+    ($atomic_id_type:ident) => {
+        #[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
+        pub struct $atomic_id_type(core::num::NonZeroUsize);
+
+        impl $atomic_id_type {
+            pub fn new() -> Self {
+                use std::sync::atomic::{AtomicUsize, Ordering};
+
+                static COUNTER: AtomicUsize = AtomicUsize::new(1);
+
+                let counter = COUNTER.fetch_add(1, Ordering::Relaxed);
+                Self (
+                    core::num::NonZeroUsize::new(counter).unwrap_or_else(|| {
+                        panic!(
+                            "The system ran out of unique `{}`s.",
+                            stringify!($atomic_id_type)
+                        );
+                    })
+                )
+            }
+        }
+    };
+}

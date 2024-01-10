@@ -1,3 +1,5 @@
+extern crate core;
+
 use std::ops::{Deref, DerefMut};
 use bevy_app::{App, AppLabel, Plugin, SubApp};
 use bevy_ecs::prelude::{IntoSystemConfigs, IntoSystemSetConfigs, Resource, Schedule, SystemSet};
@@ -10,10 +12,11 @@ use crate::present::{cleanup_frames_in_flight, create_frame_in_flight};
 mod extract;
 pub mod context;
 pub mod prelude;
-mod present;
-mod mock;
-mod extra;
-mod graph;
+pub mod present;
+pub mod mock;
+pub mod extra;
+pub mod graph;
+pub mod resource;
 
 
 /// Schedule which extract data from the main world and inserts it into the render world.

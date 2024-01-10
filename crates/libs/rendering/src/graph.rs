@@ -1,6 +1,6 @@
 pub mod node;
 pub mod edge;
+pub mod node_slot;
 mod graph;
-mod node_slot;
 
 pub use graph::*;
