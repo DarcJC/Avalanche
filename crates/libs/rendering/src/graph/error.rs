@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use bevy_utils::thiserror::Error;
+use thiserror::Error;
 use crate::prelude::node_slot::{SlotLabel, SlotType};
 
 
