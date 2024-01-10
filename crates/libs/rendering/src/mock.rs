@@ -2,8 +2,7 @@ use std::time::Duration;
 use ash::vk;
 use bevy_ecs::prelude::Res;
 use avalanche_hlvk::SemaphoreSubmitInfo;
-use crate::preclude::{FramesInFlight, RenderingContext};
-use crate::preclude::renderdoc::RenderDoc;
+use crate::prelude::{FramesInFlight, RenderingContext};
 
 /// Using to verify does raster pipeline working
 pub(crate) fn clear_screen_color(context: Res<RenderingContext>, frames_in_flight: Res<FramesInFlight>) {

@@ -5,7 +5,7 @@ use bevy_ecs::system::Resource;
 use avalanche_hlvk::{AcquiredImage, Fence, Image, Semaphore};
 use avalanche_window::{WindowComponent, WindowId};
 use crate::MainWorld;
-use crate::preclude::RenderingContext;
+use crate::prelude::RenderingContext;
 
 #[derive(Resource)]
 pub struct FramesInFlight(pub Vec<FrameInFlight>);

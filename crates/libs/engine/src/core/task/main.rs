@@ -9,7 +9,7 @@ use bevy_ecs::event::EventWriter;
 use env_logger::Env;
 use log::warn;
 use avalanche_hlvk::{ContextBuilder, DeviceFeatures, Swapchain};
-use avalanche_rendering::preclude::RenderingContext;
+use avalanche_rendering::prelude::RenderingContext;
 use avalanche_rendering::{RenderingPipelinePlugin, RenderSet};
 use avalanche_window::{new_window_component, WindowComponent, WindowManager, WindowSystemPlugin, WindowSystemSet};
 use avalanche_window::event::{WindowEventLoopClearedEvent, WindowResizedEvent};
@@ -147,7 +147,7 @@ impl PluginGroup for MainTaskPluginGroup {
 
         #[cfg(feature = "renderdoc")]
         {
-            builder = builder.add(avalanche_rendering::preclude::renderdoc::RenderDocPlugin);
+            builder = builder.add(avalanche_rendering::prelude::renderdoc::RenderDocPlugin);
         }
 
         builder

@@ -419,6 +419,7 @@ dependencies = [
  "bevy_time",
  "bevy_utils",
  "chrono",
+ "downcast-rs",
  "env_logger",
  "log",
  "renderdoc",

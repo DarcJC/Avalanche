@@ -9,10 +9,11 @@ use crate::present::{cleanup_frames_in_flight, create_frame_in_flight};
 
 mod extract;
 pub mod context;
-pub mod preclude;
+pub mod prelude;
 mod present;
 mod mock;
 mod extra;
+mod graph;
 
 
 /// Schedule which extract data from the main world and inserts it into the render world.

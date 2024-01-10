@@ -1,6 +1,6 @@
 use bevy_ecs::prelude::World;
 use crate::MainWorld;
-use crate::preclude::RenderingContext;
+use crate::prelude::RenderingContext;
 
 pub(crate) fn extract_rendering_context(render_world: &mut World) {
     let main_world = render_world.resource::<MainWorld>();
