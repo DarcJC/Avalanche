@@ -157,7 +157,7 @@ impl Node for EmptyNode {
     fn run(
         &self,
         //_graph: &mut RenderGraphContext,
-        _render_context: &mut RenderContext,
+        _render_context: &mut RenderingContext,
         _world: &World,
     ) -> Result<(), NodeRunError> {
         Ok(())
