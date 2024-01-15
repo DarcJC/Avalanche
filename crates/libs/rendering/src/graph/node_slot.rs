@@ -182,4 +182,8 @@ impl SlotInfos {
             SlotLabel::Name(ref name) => self.slots.iter().position(|s| s.name == *name)
         }
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = &SlotInfo> {
+        self.slots.iter()
+    }
 }

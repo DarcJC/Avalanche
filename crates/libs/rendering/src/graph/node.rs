@@ -4,7 +4,7 @@ use bevy_ecs::world::World;
 use downcast_rs::{Downcast, impl_downcast};
 use avalanche_utils::define_atomic_id;
 use crate::prelude::node_slot::{SlotInfo, SlotInfos};
-use crate::prelude::{NodeRunError, RenderGraphError, RenderingContext};
+use crate::prelude::{NodeRunError, RenderGraphContext, RenderGraphError, RenderingContext};
 use crate::prelude::edge::EdgeInfo;
 
 define_atomic_id!(NodeId);
@@ -31,7 +31,7 @@ pub trait Node: Downcast + Send + Sync + 'static {
     /// optionally queues up subgraphs for execution.
     fn run(
         &self,
-        //graph: &mut RenderGraphContext,
+        graph: &mut RenderGraphContext,
         rendering_context: &mut RenderingContext,
         world: &World,
     ) -> Result<(), NodeRunError>;
@@ -117,7 +117,7 @@ impl NodeState {
             T: Node,
     {
         self.node
-            .downcast::<T>()
+            .downcast_ref::<T>()
             .ok_or(RenderGraphError::WrongNodeType)
     }
 
@@ -156,7 +156,7 @@ pub struct EmptyNode;
 impl Node for EmptyNode {
     fn run(
         &self,
-        //_graph: &mut RenderGraphContext,
+        _graph: &mut RenderGraphContext,
         _render_context: &mut RenderingContext,
         _world: &World,
     ) -> Result<(), NodeRunError> {

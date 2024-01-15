@@ -9,6 +9,10 @@ use crate::prelude::node_slot::{SlotLabel, SlotType};
 pub enum NodeRunError {
     #[error("encountered an input slot error")]
     InputSlotError(#[from] InputSlotError),
+    #[error("encountered an output slot error")]
+    OutputSlotError(#[from] OutputSlotError),
+    #[error("encountered an error when running a sub-graph")]
+    RunSubGraphError(#[from] RunSubGraphError),
 }
 
 #[derive(Error, Debug, Eq, PartialEq)]
