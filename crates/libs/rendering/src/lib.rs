@@ -160,6 +160,7 @@ unsafe fn initialize_render_app(app: &mut App) {
     render_app
         .add_schedule(extract_schedule)
         .add_schedule(Render::base_schedule())
+        .init_resource::<graph::RenderGraph>()
         .add_systems(
             ExtractSchedule, (
                 extract_rendering_context.before(create_frame_in_flight),
