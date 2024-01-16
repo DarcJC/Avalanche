@@ -73,6 +73,7 @@ impl RenderGraphRunner {
         {
             #[cfg(feature = "trace")]
             let _span = info_span!("submit_graph_commands").entered();
+            frame_context.command_buffer(0).unwrap().end().map_err(|_err| RenderGraphRunnerError::SubmissionError)?;
             frame_context.submit(queue).map_err(|_err| RenderGraphRunnerError::SubmissionError)?;
         }
         Ok(())

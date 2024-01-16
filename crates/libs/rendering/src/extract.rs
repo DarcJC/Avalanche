@@ -41,7 +41,6 @@ impl FrameContext {
             },
             Ok(buffer) => {
                 let _ = buffer.begin(None);
-                let _ = buffer.end();
             }
         }
 
@@ -85,6 +84,10 @@ impl FrameContext {
     pub fn device(&self) -> Arc<Device> {
         self.render_context.device.clone()
     }
+
+    pub fn command_buffer(&self, index: usize) -> Option<&CommandBuffer> {
+        self.command_buffers.get(index)
+    }
 }
 
 impl Drop for FrameContext {
@@ -114,6 +117,7 @@ pub(crate) fn _extract_scene() {}
 pub(crate) fn release_referenced_rendering_context(world: &mut World) {
     let context = world.remove_resource::<FrameContext>().unwrap();
     unsafe {
+        context.sync_fence.wait(None).unwrap();
         context.device().inner.queue_wait_idle(context.graphics_queue().into()).unwrap();
     }
 }
