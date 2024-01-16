@@ -6,7 +6,7 @@ use bevy_ecs::prelude::{IntoSystemConfigs, IntoSystemSetConfigs, Resource, Sched
 use bevy_ecs::schedule::ScheduleLabel;
 use bevy_ecs::world::World;
 use crate::extract::{extract_rendering_context, release_referenced_rendering_context};
-use crate::mock::clear_screen_color;
+use crate::runner::system::render_system;
 
 mod extract;
 pub mod context;
@@ -169,7 +169,9 @@ unsafe fn initialize_render_app(app: &mut App) {
             ),
         )
         .add_systems(
-            Render, (clear_screen_color.in_set(RenderSet::Render),)
+            Render, (
+                render_system,
+            ).in_set(RenderSet::Render)
         )
         .add_systems(
             Render, (

@@ -2,6 +2,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use ash::vk;
 use bevy_ecs::prelude::{Resource, World};
+use bevy_log::error;
 use avalanche_hlvk::{CommandBuffer, CommandPool, Device, Fence, Queue, Semaphore};
 use crate::{INIT_COMMAND_POOL_NUM, MainWorld};
 use crate::prelude::RenderingContext;
@@ -26,13 +27,25 @@ impl FrameContext {
         let current_frame = COUNTER.wrapping_add(1);
         let frame_finish_semaphore = Arc::new(Semaphore::new(render_context.context.device.clone()).unwrap());
         let sync_fence = Arc::new(Fence::new(render_context.context.device.clone(), None).unwrap());
-        FrameContext {
+        let mut frame_context = FrameContext {
             render_context,
             current_frame,
             command_buffers: Vec::new(),
             frame_finish_semaphore,
             sync_fence,
+        };
+
+        match frame_context.allocate_command_buffer(None) {
+            Err(err) => {
+                error!("Failed to allocate default command when creating new [`FrameContext`]: {err}");
+            },
+            Ok(buffer) => {
+                let _ = buffer.begin(None);
+                let _ = buffer.end();
+            }
         }
+
+        frame_context
     }
 
     pub fn active_command_pool(&self) -> Arc<CommandPool> {
@@ -74,6 +87,18 @@ impl FrameContext {
     }
 }
 
+impl Drop for FrameContext {
+    fn drop(&mut self) {
+        let command_buffer = self.command_buffers
+            .iter()
+            .map(|buffer| buffer.inner)
+            .collect::<Vec<_>>();
+        unsafe {
+            self.device().inner.free_command_buffers(self.active_command_pool_ref().inner, command_buffer.as_slice());
+        }
+    }
+}
+
 pub(crate) fn extract_rendering_context(render_world: &mut World) {
     let main_world = render_world.resource::<MainWorld>();
     let rendering_context = main_world.get_resource::<RenderingContext>().unwrap();
@@ -87,5 +112,8 @@ pub(crate) fn extract_rendering_context(render_world: &mut World) {
 pub(crate) fn _extract_scene() {}
 
 pub(crate) fn release_referenced_rendering_context(world: &mut World) {
-    world.remove_resource::<FrameContext>();
+    let context = world.remove_resource::<FrameContext>().unwrap();
+    unsafe {
+        context.device().inner.queue_wait_idle(context.graphics_queue().into()).unwrap();
+    }
 }

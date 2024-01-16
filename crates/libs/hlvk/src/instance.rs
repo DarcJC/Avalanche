@@ -46,7 +46,7 @@ impl Instance {
         let inner = unsafe { entry.create_instance(&instance_create_info, None)? };
 
         // Enable debug layer
-        Ok(if is_debug {
+        Ok(if cfg!(feature = "validation") {
             let create_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
                 .flags(vk::DebugUtilsMessengerCreateFlagsEXT::empty())
                 .message_severity(

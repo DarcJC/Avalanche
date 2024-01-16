@@ -49,6 +49,12 @@ pub struct Queue {
     pub inner: vk::Queue,
 }
 
+impl Into<vk::Queue> for Queue {
+    fn into(self) -> vk::Queue {
+        self.inner.clone()
+    }
+}
+
 impl Queue {
     pub(crate) fn new(device: Arc<Device>, inner: vk::Queue) -> Self {
         Self { device, inner }
@@ -121,11 +127,11 @@ impl Queue {
             .command_buffers(command_buffer.as_slice())
             .wait_semaphores(wait_semaphore.as_slice())
             .signal_semaphores(signal_semaphore.as_slice())
-            .wait_dst_stage_mask(&[vk::PipelineStageFlags::ALL_GRAPHICS])
+            // .wait_dst_stage_mask(std::slice::from_ref(&vk::PipelineStageFlags::default()))
             .build();
 
         unsafe {
-            self.device.inner.queue_submit(self .inner, &[info], fence.inner)?
+            self.device.inner.queue_submit(self.inner, &[info], fence.inner)?
         };
 
         Ok(())

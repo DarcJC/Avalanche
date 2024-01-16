@@ -2,7 +2,7 @@ use bevy_ecs::prelude::Res;
 use crate::prelude::RenderingContext;
 
 /// Using to verify does raster pipeline working
-pub(crate) fn clear_screen_color(_context: Res<RenderingContext>) {
+pub(crate) fn _clear_screen_color(_context: Res<RenderingContext>) {
     // let frame = frames_in_flight.0.first().unwrap();
     // let extent = frame.swapchain_image.extent;
     //
