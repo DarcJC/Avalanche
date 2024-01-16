@@ -7,7 +7,6 @@ use bevy_ecs::schedule::ScheduleLabel;
 use bevy_ecs::world::World;
 use crate::extract::{extract_rendering_context, release_referenced_rendering_context};
 use crate::mock::clear_screen_color;
-use crate::present::{cleanup_frames_in_flight, create_frame_in_flight};
 
 mod extract;
 pub mod context;
@@ -17,7 +16,10 @@ pub mod mock;
 pub mod extra;
 pub mod graph;
 pub mod resource;
+pub(crate) mod runner;
 
+/// Cached command pool when setup rendering system.
+pub const INIT_COMMAND_POOL_NUM: usize = 3;
 
 /// Schedule which extract data from the main world and inserts it into the render world.
 ///
@@ -163,8 +165,7 @@ unsafe fn initialize_render_app(app: &mut App) {
         .init_resource::<graph::RenderGraph>()
         .add_systems(
             ExtractSchedule, (
-                extract_rendering_context.before(create_frame_in_flight),
-                create_frame_in_flight,
+                extract_rendering_context,
             ),
         )
         .add_systems(
@@ -173,8 +174,7 @@ unsafe fn initialize_render_app(app: &mut App) {
         .add_systems(
             Render, (
                 World::clear_entities.in_set(RenderSet::Cleanup),
-                cleanup_frames_in_flight.in_set(RenderSet::Cleanup),
-                release_referenced_rendering_context.in_set(RenderSet::Cleanup).after(cleanup_frames_in_flight),
+                release_referenced_rendering_context.in_set(RenderSet::Cleanup),
             ),
         );
 

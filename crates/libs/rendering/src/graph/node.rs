@@ -3,8 +3,9 @@ use std::fmt::{Debug, Formatter};
 use bevy_ecs::world::World;
 use downcast_rs::{Downcast, impl_downcast};
 use avalanche_utils::define_atomic_id;
+use crate::extract::FrameContext;
 use crate::prelude::node_slot::{SlotInfo, SlotInfos};
-use crate::prelude::{NodeRunError, RenderGraphContext, RenderGraphError, RenderingContext};
+use crate::prelude::{NodeRunError, RenderGraphContext, RenderGraphError};
 use crate::prelude::edge::EdgeInfo;
 
 define_atomic_id!(NodeId);
@@ -32,7 +33,7 @@ pub trait Node: Downcast + Send + Sync + 'static {
     fn run(
         &self,
         graph: &mut RenderGraphContext,
-        rendering_context: &mut RenderingContext,
+        rendering_context: &FrameContext,
         world: &World,
     ) -> Result<(), NodeRunError>;
 }
@@ -157,7 +158,7 @@ impl Node for EmptyNode {
     fn run(
         &self,
         _graph: &mut RenderGraphContext,
-        _render_context: &mut RenderingContext,
+        _render_context: &FrameContext,
         _world: &World,
     ) -> Result<(), NodeRunError> {
         Ok(())

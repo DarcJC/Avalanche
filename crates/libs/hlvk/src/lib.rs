@@ -1,5 +1,7 @@
 #![feature(let_chains)]
 
+extern crate core;
+
 mod instance;
 mod util;
 mod context;

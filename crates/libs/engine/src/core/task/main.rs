@@ -10,7 +10,7 @@ use env_logger::Env;
 use log::warn;
 use avalanche_hlvk::{ContextBuilder, DeviceFeatures, Swapchain};
 use avalanche_rendering::prelude::RenderingContext;
-use avalanche_rendering::{RenderingPipelinePlugin, RenderSet};
+use avalanche_rendering::{INIT_COMMAND_POOL_NUM, RenderingPipelinePlugin, RenderSet};
 use avalanche_window::{new_window_component, WindowComponent, WindowManager, WindowSystemPlugin, WindowSystemSet};
 use avalanche_window::event::{WindowEventLoopClearedEvent, WindowResizedEvent};
 use crate::core::event::BeginRenderWindowViewEvent;
@@ -31,10 +31,12 @@ fn start_rendering_system_with_window(world: &mut World) {
         .vulkan_version(avalanche_utils::VERSION_1_3)
         .build().unwrap();
 
-    let command_pool = vulkan_context.create_command_pool(
-        vulkan_context.graphics_queue_family,
-        Some(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-    ).unwrap();
+    let command_pools = (0..INIT_COMMAND_POOL_NUM)
+        .map(|_| Arc::new(vulkan_context.create_command_pool(
+            vulkan_context.graphics_queue_family,
+            Some(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
+        ).unwrap()))
+        .collect::<Vec<_>>();
 
     let swapchain = Swapchain::new(
         &vulkan_context,
@@ -46,16 +48,13 @@ fn start_rendering_system_with_window(world: &mut World) {
 
     drop(window_ref);
 
-    let command_buffers = command_pool.allocate_command_buffers(vk::CommandBufferLevel::PRIMARY, swapchain.images.len() as _).unwrap();
-
     first_window_component.render_device = Some(vulkan_context.device.clone());
     first_window_component.surface = Some(vulkan_context.surface.clone());
     first_window_component.swapchain = Some(RwLock::new(swapchain));
 
     let context = RenderingContext {
         context: Arc::new(vulkan_context),
-        command_pool: Arc::new(command_pool),
-        swapchain_command_buffer: Arc::new(command_buffers),
+        command_pools: Arc::new(command_pools),
     };
 
     world.insert_resource(context);

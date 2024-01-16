@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use bevy_ecs::prelude::{Resource, World};
-use crate::context::RenderingContext;
+use crate::extract::FrameContext;
 use crate::graph::NodeRunError;
 use crate::prelude::node::{Node, NodeId, NodeLabel, NodeState};
 use crate::prelude::node_slot::{SlotInfo, SlotLabel};
@@ -660,7 +660,7 @@ impl Node for GraphInputNode {
         self.inputs.clone()
     }
 
-    fn run(&self, graph: &mut RenderGraphContext, _rendering_context: &mut RenderingContext, _world: &World) -> Result<(), NodeRunError> {
+    fn run(&self, graph: &mut RenderGraphContext, _rendering_context: &FrameContext, _world: &World) -> Result<(), NodeRunError> {
         for i in 0..graph.inputs().len() {
             let input = graph.inputs()[i].clone();
             graph.set_output(i, input)?;

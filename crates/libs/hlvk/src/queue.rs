@@ -54,7 +54,7 @@ impl Queue {
         Self { device, inner }
     }
 
-    pub fn submit(
+    pub fn submit_1_3(
         &self,
         command_buffer: &CommandBuffer,
         wait_semaphore: Option<SemaphoreSubmitInfo>,
@@ -92,6 +92,40 @@ impl Queue {
                 std::slice::from_ref(&submit_info),
                 fence.inner,
             )?
+        };
+
+        Ok(())
+    }
+
+    pub fn submit(
+        &self,
+        command_buffer: &Vec<CommandBuffer>,
+        wait_semaphore: &[Semaphore],
+        signal_semaphore: &[Semaphore],
+        fence: &Fence,
+    ) -> anyhow::Result<()> {
+        let command_buffer = command_buffer
+            .iter()
+            .map(|buffer| buffer.inner)
+            .collect::<Vec<_>>();
+        let wait_semaphore = wait_semaphore
+            .iter()
+            .map(|s| s.inner)
+            .collect::<Vec<_>>();
+        let signal_semaphore = signal_semaphore
+            .iter()
+            .map(|s| s.inner)
+            .collect::<Vec<_>>();
+
+        let info = vk::SubmitInfo::builder()
+            .command_buffers(command_buffer.as_slice())
+            .wait_semaphores(wait_semaphore.as_slice())
+            .signal_semaphores(signal_semaphore.as_slice())
+            .wait_dst_stage_mask(&[vk::PipelineStageFlags::ALL_GRAPHICS])
+            .build();
+
+        unsafe {
+            self.device.inner.queue_submit(self .inner, &[info], fence.inner)?
         };
 
         Ok(())
