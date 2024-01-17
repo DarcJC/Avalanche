@@ -1,6 +1,6 @@
 use std::io::Write;
 use std::ops::Deref;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use bevy_app::{App, Plugin, PluginGroup, PluginGroupBuilder, Update};
 use bevy_ecs::prelude::{EventReader, IntoSystemConfigs, IntoSystemSetConfigs, Query, Res, World};
 use chrono::Local;
@@ -48,7 +48,7 @@ fn start_rendering_system_with_window(world: &mut World) {
 
     first_window_component.render_device = Some(vulkan_context.device.clone());
     first_window_component.surface = Some(vulkan_context.surface.clone());
-    first_window_component.swapchain = Some(Arc::new(RwLock::new(swapchain)));
+    first_window_component.swapchain = Some(Arc::new(swapchain));
 
     let context = RenderingContext {
         context: Arc::new(vulkan_context),
@@ -67,14 +67,11 @@ fn window_resize_handler(mut event_reader: EventReader<WindowResizedEvent>, wind
         if let Some(window) = windows
             .iter()
             .find(|i| i.window.id() == evt.window_id)  {
-            let res = window.swapchain
+            if let Err(err) = window.swapchain
                 .as_ref()
                 .unwrap()
-                .write()
-                .unwrap()
-                .resize(&rendering_context.context, evt.new_size.0, evt.new_size.1);
-            if let Err(err) = res {
-                warn!("[Window] Failed to recreate swapchain for window: {err}");
+                .resize(&rendering_context.context, evt.new_size.0, evt.new_size.1) {
+                    warn!("[Window] Failed to recreate swapchain for window: {err}");
             }
         }
     })

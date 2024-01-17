@@ -5,7 +5,7 @@
 pub mod event;
 
 use std::cell::RefCell;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::Duration;
 use bevy_app::{App, Plugin, Update};
 use bevy_ecs::prelude::{Component, EventReader, EventWriter, IntoSystemConfigs, IntoSystemSetConfigs, Query, Resource, SystemSet, World};
@@ -68,7 +68,7 @@ pub struct WindowComponent {
     pub id: WindowId,
     pub window: Arc<Window>,
     pub surface: Option<Arc<Surface>>,
-    pub swapchain: Option<Arc<RwLock<Swapchain>>>,
+    pub swapchain: Option<Arc<Swapchain>>,
     pub render_device: Option<Arc<Device>>,
 }
 

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::Duration;
 use anyhow::{anyhow, Error, Result};
@@ -16,16 +16,16 @@ pub struct AcquiredImage {
 pub struct Swapchain {
     device: Arc<Device>,
     inner: AshSwapchain,
-    swapchain_khr: vk::SwapchainKHR,
-    pub extent: vk::Extent2D,
+    swapchain_khr: RwLock<vk::SwapchainKHR>,
+    pub extent: RwLock<vk::Extent2D>,
     pub format: vk::Format,
     pub color_space: vk::ColorSpaceKHR,
     pub present_mode: vk::PresentModeKHR,
-    pub images: Vec<Image>,
-    pub views: Vec<ImageView>,
+    pub images: RwLock<Vec<Image>>,
+    pub views: RwLock<Vec<ImageView>>,
 
     /// semaphore for acquire image
-    acquire_semaphores: Vec<Arc<Semaphore>>,
+    acquire_semaphores: RwLock<Vec<Arc<Semaphore>>>,
     current_semaphores_index: AtomicU8,
 }
 
@@ -145,19 +145,19 @@ impl Swapchain {
         Ok(Self {
             device,
             inner,
-            swapchain_khr,
-            extent,
+            swapchain_khr: RwLock::new(swapchain_khr),
+            extent: RwLock::new(extent),
             format: format.format,
             color_space: format.color_space,
             present_mode,
-            images,
-            views,
-            acquire_semaphores,
+            images: RwLock::new(images),
+            views: RwLock::new(views),
+            acquire_semaphores: RwLock::new(acquire_semaphores),
             current_semaphores_index: AtomicU8::new(0u8),
         })
     }
 
-    pub fn resize(&mut self, context: &Context, width: u32, height: u32) -> Result<()> {
+    pub fn resize(&self, context: &Context, width: u32, height: u32) -> Result<()> {
         self.destroy();
 
         let capabilities = context.get_surface_capabilities()?;
@@ -218,32 +218,31 @@ impl Swapchain {
             .map(Image::create_image_view)
             .collect::<Result<Vec<_>, _>>()?;
 
-        if self.images.len() != image_count as usize {
-            self.acquire_semaphores = images
-                .iter()
-                .map(|_| {
-                    Arc::new(Semaphore::new(self.device.clone()).unwrap())
-                })
-                .collect::<Vec<_>>();
-            self.current_semaphores_index.store(0u8, Ordering::Relaxed);
-        }
+        *self.acquire_semaphores.write().unwrap() = images
+            .iter()
+            .map(|_| {
+                Arc::new(Semaphore::new(self.device.clone()).unwrap())
+            })
+            .collect::<Vec<_>>();
+        self.current_semaphores_index.store(0u8, Ordering::Relaxed);
 
-        self.swapchain_khr = swapchain_khr;
-        self.extent = extent;
-        self.images = images;
-        self.views = views;
+        *self.swapchain_khr.write().unwrap() = swapchain_khr;
+        *self.extent.write().unwrap() = extent;
+        *self.images.write().unwrap() = images;
+        *self.views.write().unwrap() = views;
 
         Ok(())
     }
 
     fn next_semaphore(&mut self) -> Result<Arc<Semaphore>> {
-        let index = self.current_semaphores_index.fetch_update(Ordering::Release, Ordering::Acquire, |value| Some((value + 1) % self.images.len() as u8)).unwrap() + 1;
-        self.acquire_semaphores[index as usize] = Arc::new(Semaphore::new(self.device.clone())?);
+        let images = self.images.read().unwrap();
+        let index = self.current_semaphores_index.fetch_update(Ordering::Release, Ordering::Acquire, |value| Some((value + 1) % images.len() as u8)).unwrap() + 1;
+        self.acquire_semaphores.write().unwrap()[index as usize] = Arc::new(Semaphore::new(self.device.clone())?);
         Ok(self.current_acquire_semaphore())
     }
 
     pub fn current_acquire_semaphore(&self) -> Arc<Semaphore> {
-        self.acquire_semaphores[self.current_semaphores_index.load(Ordering::Relaxed) as usize].clone()
+        self.acquire_semaphores.read().unwrap()[self.current_semaphores_index.load(Ordering::Relaxed) as usize].clone()
     }
 
     pub fn acquire_next_image(&mut self, timeout: Duration, fence: Option<&Fence>) -> Result<AcquiredImage> {
@@ -251,7 +250,7 @@ impl Swapchain {
         let semaphore = self.next_semaphore()?;
         let (index, is_suboptimal) = unsafe {
             self.inner.acquire_next_image(
-                self.swapchain_khr,
+                self.swapchain_khr.read().unwrap().clone(),
                 timeout,
                 semaphore.inner,
                 if let Some(fence) = fence { fence.inner } else { vk::Fence::null() },
@@ -272,7 +271,7 @@ impl Swapchain {
         let (index, is_suboptimal) = unsafe {
             self.inner.acquire_next_image2(
                 &vk::AcquireNextImageInfoKHR::builder()
-                    .swapchain(self.swapchain_khr)
+                    .swapchain(self.swapchain_khr.read().unwrap().clone())
                     .timeout(timeout)
                     .fence(if let Some(fence) = fence { fence.inner } else { vk::Fence::null() })
                     .semaphore(if let Some(semaphore) = semaphore { semaphore.inner } else { vk::Semaphore::null() })
@@ -292,7 +291,7 @@ impl Swapchain {
         wait_semaphores: &[&Semaphore],
         queue: &Queue,
     ) -> Result<bool> {
-        let swapchains = [self.swapchain_khr];
+        let swapchains = [self.swapchain_khr.read().unwrap().clone()];
         let images_indices = [image_index];
         let wait_semaphores = wait_semaphores.iter().map(|s| s.inner).collect::<Vec<_>>();
 
@@ -312,11 +311,17 @@ impl Swapchain {
         }
     }
 
-    fn destroy(&mut self) {
-        self.views.clear();
-        self.images.clear();
+    fn destroy(&self) {
+        self.views
+            .write()
+            .unwrap()
+            .clear();
+        self.images
+            .write()
+            .unwrap()
+            .clear();
         unsafe {
-            self.inner.destroy_swapchain(self.swapchain_khr, None)
+            self.inner.destroy_swapchain(self.swapchain_khr.read().unwrap().clone(), None)
         }
     }
 }
