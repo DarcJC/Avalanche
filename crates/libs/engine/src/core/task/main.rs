@@ -21,9 +21,9 @@ pub struct EngineContextSetupPlugin;
 fn start_rendering_system_with_window(world: &mut World) {
     let window_manager = world.get_non_send_resource::<WindowManager>().unwrap();
     let mut first_window_component = new_window_component(window_manager.event_loop.borrow_mut().deref()).unwrap();
-    let window_ref = first_window_component.window.write().unwrap();
+    let window_ref = &first_window_component.window;
 
-    let vulkan_context = ContextBuilder::new(window_ref.deref(), window_ref.deref())
+    let vulkan_context = ContextBuilder::new(window_ref, window_ref)
         .required_device_features(DeviceFeatures::full())
         .with_raytracing_context(false)
         .app_name("Avalanche Engine")
@@ -46,11 +46,9 @@ fn start_rendering_system_with_window(world: &mut World) {
 
     // TODO raytracing
 
-    drop(window_ref);
-
     first_window_component.render_device = Some(vulkan_context.device.clone());
     first_window_component.surface = Some(vulkan_context.surface.clone());
-    first_window_component.swapchain = Some(RwLock::new(swapchain));
+    first_window_component.swapchain = Some(Arc::new(RwLock::new(swapchain)));
 
     let context = RenderingContext {
         context: Arc::new(vulkan_context),
@@ -68,8 +66,13 @@ fn window_resize_handler(mut event_reader: EventReader<WindowResizedEvent>, wind
     event_reader.read().for_each(|evt|  {
         if let Some(window) = windows
             .iter()
-            .find(|i| i.window.read().unwrap().id() == evt.window_id)  {
-            let res = window.swapchain.as_ref().unwrap().write().unwrap().resize(&rendering_context.context, evt.new_size.0, evt.new_size.1);
+            .find(|i| i.window.id() == evt.window_id)  {
+            let res = window.swapchain
+                .as_ref()
+                .unwrap()
+                .write()
+                .unwrap()
+                .resize(&rendering_context.context, evt.new_size.0, evt.new_size.1);
             if let Err(err) = res {
                 warn!("[Window] Failed to recreate swapchain for window: {err}");
             }

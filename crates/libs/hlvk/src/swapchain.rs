@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::Duration;
 use anyhow::{anyhow, Error, Result};
 use ash::extensions::khr::Swapchain as AshSwapchain;
@@ -25,7 +26,7 @@ pub struct Swapchain {
 
     /// semaphore for acquire image
     acquire_semaphores: Vec<Arc<Semaphore>>,
-    current_semaphores_index: usize,
+    current_semaphores_index: AtomicU8,
 }
 
 impl Swapchain {
@@ -152,7 +153,7 @@ impl Swapchain {
             images,
             views,
             acquire_semaphores,
-            current_semaphores_index: 0,
+            current_semaphores_index: AtomicU8::new(0u8),
         })
     }
 
@@ -224,7 +225,7 @@ impl Swapchain {
                     Arc::new(Semaphore::new(self.device.clone()).unwrap())
                 })
                 .collect::<Vec<_>>();
-            self.current_semaphores_index = 0;
+            self.current_semaphores_index.store(0u8, Ordering::Relaxed);
         }
 
         self.swapchain_khr = swapchain_khr;
@@ -236,13 +237,13 @@ impl Swapchain {
     }
 
     fn next_semaphore(&mut self) -> Result<Arc<Semaphore>> {
-        self.current_semaphores_index = (self.current_semaphores_index + 1) % self.images.len();
-        self.acquire_semaphores[self.current_semaphores_index] = Arc::new(Semaphore::new(self.device.clone())?);
+        let index = self.current_semaphores_index.fetch_update(Ordering::Release, Ordering::Acquire, |value| Some((value + 1) % self.images.len() as u8)).unwrap() + 1;
+        self.acquire_semaphores[index as usize] = Arc::new(Semaphore::new(self.device.clone())?);
         Ok(self.current_acquire_semaphore())
     }
 
     pub fn current_acquire_semaphore(&self) -> Arc<Semaphore> {
-        self.acquire_semaphores[self.current_semaphores_index].clone()
+        self.acquire_semaphores[self.current_semaphores_index.load(Ordering::Relaxed) as usize].clone()
     }
 
     pub fn acquire_next_image(&mut self, timeout: Duration, fence: Option<&Fence>) -> Result<AcquiredImage> {
@@ -325,6 +326,8 @@ impl Drop for Swapchain {
         self.destroy()
     }
 }
+
+unsafe impl Sync for Swapchain {}
 
 pub fn get_surface_suitable_extent(capabilities: &vk::SurfaceCapabilitiesKHR, target_width: u32, target_height: u32) -> vk::Extent2D {
     if capabilities.current_extent.width != u32::MAX {

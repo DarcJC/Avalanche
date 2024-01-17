@@ -1,5 +1,6 @@
 use bevy_ecs::prelude::{Mut, World};
 use bevy_log::error;
+use bevy_utils::tracing::info_span;
 use crate::extract::FrameContext;
 use crate::prelude::RenderGraph;
 use crate::runner::RenderGraphRunner;
@@ -34,5 +35,9 @@ pub fn render_system(world: &mut World) {
         }
 
         panic!("Error running render graph: {err}");
+    }
+
+    {
+        let _span = info_span!("present_frames").entered();
     }
 }

@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
+use anyhow::Context;
 use ash::vk;
-use crate::{Context, Device};
+use crate::{Context as CContext, Device};
 
 /// Semaphore is for ordering gpu tasks
 pub struct Semaphore {
@@ -18,7 +19,7 @@ impl Semaphore {
     }
 }
 
-impl Context {
+impl CContext {
     pub fn create_semaphore(&self) -> anyhow::Result<Semaphore> {
         Semaphore::new(self.device.clone())
     }
@@ -34,7 +35,7 @@ impl Drop for Semaphore {
 
 /// Fence is for host-gpu sync
 pub struct Fence {
-    device: Arc<Device>,
+    device: Option<Arc<Device>>,
     pub(crate) inner: vk::Fence,
 }
 
@@ -44,7 +45,14 @@ impl Fence {
         let fence_info = vk::FenceCreateInfo::builder().flags(flags);
         let inner = unsafe { device.inner.create_fence(&fence_info, None)? };
 
-        Ok(Self { device, inner })
+        Ok(Self { device: Some(device), inner })
+    }
+
+    pub fn null() -> Self {
+        Self {
+            device: None,
+            inner: vk::Fence::null(),
+        }
     }
 
     pub fn wait(&self, timeout: Option<Duration>) -> anyhow::Result<()> {
@@ -52,6 +60,8 @@ impl Fence {
 
         unsafe {
             self.device
+                .as_ref()
+                .context("Could not wait null fence.")?
                 .inner
                 .wait_for_fences(&[self.inner], true, timeout)?
         }
@@ -60,13 +70,17 @@ impl Fence {
     }
 
     pub fn reset(&self) -> anyhow::Result<()> {
-        unsafe { self.device.inner.reset_fences(&[self.inner])? };
+        unsafe { self.device.as_ref().context("Could not wait null fence.")?.inner.reset_fences(&[self.inner])? };
 
         Ok(())
     }
+
+    pub fn is_null(&self) -> bool {
+        self.device.is_none()
+    }
 }
 
-impl Context {
+impl CContext {
     pub fn create_fence(&self, flags: Option<vk::FenceCreateFlags>) -> anyhow::Result<Fence> {
         Fence::new(self.device.clone(), flags)
     }
@@ -75,7 +89,9 @@ impl Context {
 impl Drop for Fence {
     fn drop(&mut self) {
         unsafe {
-            self.device.inner.destroy_fence(self.inner, None)
+            if let Some(device) = &self.device {
+                device.inner.destroy_fence(self.inner, None)
+            }
         }
     }
 }

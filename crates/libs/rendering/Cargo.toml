@@ -26,6 +26,8 @@ arc-swap.workspace = true
 downcast-rs.workspace = true
 thiserror.workspace = true
 smallvec.workspace = true
+winit.workspace = true
+raw-window-handle.workspace = true
 
 [features]
 trace = []

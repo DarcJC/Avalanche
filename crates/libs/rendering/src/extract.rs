@@ -27,6 +27,8 @@ impl FrameContext {
         let current_frame = COUNTER.wrapping_add(1);
         let frame_finish_semaphore = Arc::new(Semaphore::new(render_context.context.device.clone()).unwrap());
         let sync_fence = Arc::new(Fence::new(render_context.context.device.clone(), None).unwrap());
+        // TODO: try to use Timeline Semaphore introduced in vk 1.2?
+        // let sync_fence = Arc::new(Fence::null());
         let mut frame_context = FrameContext {
             render_context,
             current_frame,
@@ -117,7 +119,7 @@ pub(crate) fn _extract_scene() {}
 pub(crate) fn release_referenced_rendering_context(world: &mut World) {
     let context = world.remove_resource::<FrameContext>().unwrap();
     unsafe {
-        context.sync_fence.wait(None).unwrap();
-        context.device().inner.queue_wait_idle(context.graphics_queue().into()).unwrap();
+        let _ = context.sync_fence.wait(None);
+        //context.render_context.device_wait_idle().unwrap();
     }
 }

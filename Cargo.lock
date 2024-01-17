@@ -422,9 +422,11 @@ dependencies = [
  "downcast-rs",
  "env_logger",
  "log",
+ "raw-window-handle 0.6.0",
  "renderdoc",
  "smallvec",
  "thiserror",
+ "winit 0.29.3",
 ]
 
 [[package]]

@@ -66,14 +66,14 @@ pub struct WindowId(u32);
 #[derive(Component)]
 pub struct WindowComponent {
     pub id: WindowId,
-    pub window: RwLock<Window>,
+    pub window: Arc<Window>,
     pub surface: Option<Arc<Surface>>,
-    pub swapchain: Option<RwLock<Swapchain>>,
+    pub swapchain: Option<Arc<RwLock<Swapchain>>>,
     pub render_device: Option<Arc<Device>>,
 }
 
 impl WindowComponent {
-    pub fn new(window: RwLock<Window>) -> Self {
+    pub fn new(window: Arc<Window>) -> Self {
         Self {
             id: WindowId(ID_GENERATOR_32_STATIC.next_id()),
             window,
@@ -89,7 +89,7 @@ pub fn new_window_component(event_loop: &EventLoop<()>) -> anyhow::Result<Window
         .with_title("[Avalanche] Default Title")
         .build(event_loop)?;
 
-    Ok(WindowComponent::new(RwLock::new(window)))
+    Ok(WindowComponent::new(Arc::new(window)))
 }
 
 fn winit_event_poll_worker_system(world: &mut World) {
@@ -134,12 +134,12 @@ fn window_update_system(mut event_reader: EventReader<WinitWindowEvent>, mut eve
     event_reader.read().for_each(|evt| {
         if let Some(window) = windows
             .iter()
-            .find(|i| i.window.read().unwrap().id() == evt.window_id) {
+            .find(|i| i.window.id() == evt.window_id) {
             match evt.window_event {
                 // WindowEvent::Resized(extent) => {
                 // },
                 WindowEvent::RedrawRequested => {
-                    let size = window.window.read().unwrap().inner_size();
+                    let size = window.window.inner_size();
                     event_writer.send(WindowResizedEvent { window_id: evt.window_id.clone(), new_size: (size.width, size.height) });
                 },
                 _ => ()
