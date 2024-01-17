@@ -2,7 +2,7 @@ extern crate core;
 
 use std::ops::{Deref, DerefMut};
 use bevy_app::{App, AppLabel, Plugin, SubApp};
-use bevy_ecs::prelude::{IntoSystemConfigs, IntoSystemSetConfigs, Resource, Schedule, SystemSet};
+use bevy_ecs::prelude::{IntoSystemConfigs, IntoSystemSetConfigs, Mut, Resource, Schedule, Schedules, SystemSet};
 use bevy_ecs::schedule::ScheduleLabel;
 use bevy_ecs::world::World;
 use crate::extract::{extract_rendering_context, release_referenced_rendering_context};
@@ -170,14 +170,15 @@ unsafe fn initialize_render_app(app: &mut App) {
         )
         .add_systems(
             Render, (
-                render_system,
-            ).in_set(RenderSet::Render)
-        )
-        .add_systems(
-            Render, (
-                World::clear_entities.in_set(RenderSet::Cleanup),
-                release_referenced_rendering_context.in_set(RenderSet::Cleanup),
-            ),
+                apply_extract_commands.in_set(RenderSet::ExtractCommands),
+                (
+                    render_system,
+                ).in_set(RenderSet::Render),
+                (
+                    World::clear_entities,
+                    release_referenced_rendering_context,
+                ).in_set(RenderSet::Cleanup),
+            )
         );
 
     let (sender, receiver) = bevy_time::create_time_channels();
@@ -222,4 +223,16 @@ fn tick(main_world: &mut World, render_app: &mut App) {
     let inserted_world = render_app.world.remove_resource::<MainWorld>().unwrap();
     let scratch_world = std::mem::replace(main_world, inserted_world.0);
     main_world.insert_resource(ScratchMainWorld(scratch_world));
+}
+
+/// Applies the commands from the extract schedule. This happens during
+/// the render schedule rather than during extraction to allow the commands to run in parallel with the
+/// main app when pipelined rendering is enabled.
+fn apply_extract_commands(render_world: &mut World) {
+    render_world.resource_scope(|render_world, mut schedules: Mut<Schedules>| {
+        schedules
+            .get_mut(ExtractSchedule)
+            .unwrap()
+            .apply_deferred(render_world);
+    });
 }
