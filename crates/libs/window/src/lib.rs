@@ -8,7 +8,8 @@ use std::cell::RefCell;
 use std::sync::Arc;
 use std::time::Duration;
 use bevy_app::{App, Plugin, Update};
-use bevy_ecs::prelude::{Component, EventReader, EventWriter, IntoSystemConfigs, IntoSystemSetConfigs, Query, Resource, SystemSet, World};
+use bevy_ecs::prelude::{Component, EventReader, EventWriter, IntoSystemConfigs, IntoSystemSetConfigs, Mut, Query, Resource, SystemSet, World};
+use raw_window_handle::{DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, WindowHandle};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{EventLoop, EventLoopBuilder};
 use winit::platform::pump_events::EventLoopExtPumpEvents;
@@ -63,7 +64,7 @@ impl Default for WindowManager {
 #[derive(Component, Clone)]
 pub struct WindowId(u32);
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct WindowComponent {
     pub id: WindowId,
     pub window: Arc<Window>,
@@ -92,13 +93,11 @@ pub fn new_window_component(event_loop: &EventLoop<()>) -> anyhow::Result<Window
     Ok(WindowComponent::new(Arc::new(window)))
 }
 
-fn winit_event_poll_worker_system(world: &mut World) {
+fn winit_event_poll_worker_system(mut window_manager: Mut<WindowManager>, mut window_event: EventWriter<WinitWindowEvent>) {
     #[cfg(feature = "trace")]
     let _span = bevy_utils::tracing::info_span!("poll winit event loop").entered();
 
-    let window_manager = world.get_non_send_resource_mut::<WindowManager>().unwrap();
     let mut evt_window = None;
-    let mut evt_wait = None;
     window_manager
         .event_loop
         .borrow_mut()
@@ -113,18 +112,11 @@ fn winit_event_poll_worker_system(world: &mut World) {
                         Event::WindowEvent {
                             event: window_event,
                             window_id,
-                        } => evt_window = Some(WinitWindowEvent {  window_event, window_id }),
-                        Event::AboutToWait => evt_wait = Some(WindowEventLoopClearedEvent()),
+                        } => evt_window = window_event(WinitWindowEvent {  window_event, window_id }),
                         _ => (),
                     }
                 }
         );
-    if let Some(evt) = evt_window {
-        world.send_event(evt);
-    }
-    if let Some(evt) = evt_wait {
-        world.send_event(evt);
-    }
 }
 
 fn window_update_system(mut event_reader: EventReader<WinitWindowEvent>, mut event_writer: EventWriter<WindowResizedEvent>, windows: Query<&WindowComponent>) {
@@ -147,3 +139,36 @@ fn window_update_system(mut event_reader: EventReader<WinitWindowEvent>, mut eve
         }
     });
 }
+
+
+/// ## SAFETY
+/// Use this wrapper in main thread.
+/// Or just support PC platform to using multiple thread
+pub struct HandleWrapper {
+    window_handle: RawWindowHandle,
+    display_handle: RawDisplayHandle,
+}
+
+impl From<Window> for HandleWrapper {
+    fn from(value: Window) -> Self {
+        Self {
+            window_handle: value.window_handle().unwrap().as_raw(),
+            display_handle: value.display_handle().unwrap().as_raw(),
+        }
+    }
+}
+
+impl HasDisplayHandle for HandleWrapper {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        unsafe { Ok(DisplayHandle::borrow_raw(self.display_handle)) }
+    }
+}
+
+impl HasWindowHandle for HandleWrapper {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        unsafe { Ok(WindowHandle::borrow_raw(self.window_handle)) }
+    }
+}
+
+unsafe impl Sync for HandleWrapper {}
+unsafe impl Send for HandleWrapper {}
