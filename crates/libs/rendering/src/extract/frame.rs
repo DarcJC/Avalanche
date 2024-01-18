@@ -101,6 +101,16 @@ impl FrameContext {
     pub fn sync_fence_ref(&self) -> &Fence {
         self.sync_fence.as_ref()
     }
+
+    #[inline]
+    pub fn render_context(&self) -> &RenderingContext {
+        &self.render_context
+    }
+
+    #[inline]
+    pub fn render_context_mut(&self) -> &RenderingContext {
+        &self.render_context
+    }
 }
 
 impl Drop for FrameContext {

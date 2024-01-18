@@ -4,8 +4,7 @@
 
 pub mod event;
 
-use std::cell::RefCell;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use bevy_app::{App, Plugin, Update};
 use bevy_ecs::prelude::{Component, EventReader, EventWriter, IntoSystemConfigs, IntoSystemSetConfigs, NonSend, Query, Resource, SystemSet};
@@ -46,13 +45,13 @@ impl Plugin for WindowSystemPlugin {
 
 #[derive(Resource)]
 pub struct WindowManager {
-    pub event_loop: RefCell<EventLoop<()>>,
+    pub event_loop: RwLock<EventLoop<()>>,
 }
 
 impl Default for WindowManager {
     fn default() -> Self {
         Self {
-            event_loop: RefCell::new(
+            event_loop: RwLock::new(
                 EventLoopBuilder::default()
                     .build()
                     .unwrap()
@@ -102,7 +101,8 @@ fn winit_event_poll_worker_system(window_manager: NonSend<WindowManager>, mut wi
 
     window_manager
         .event_loop
-        .borrow_mut()
+        .write()
+        .unwrap()
         .pump_events(
             Some(Duration::ZERO),
             |event, event_target| {
