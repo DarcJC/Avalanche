@@ -15,6 +15,8 @@ pub struct FrameContext {
     command_buffers: Vec<CommandBuffer>,
     frame_finish_semaphore: Arc<Semaphore>,
     sync_fence: Arc<Fence>,
+    /// in-frame semaphore container
+    semaphores: Vec<Arc<Semaphore>>,
 }
 
 impl FrameContext {
@@ -35,6 +37,7 @@ impl FrameContext {
             command_buffers: Vec::new(),
             frame_finish_semaphore,
             sync_fence,
+            semaphores: Vec::new(),
         };
 
         match frame_context.allocate_command_buffer(None) {
@@ -114,6 +117,13 @@ impl FrameContext {
     #[inline]
     pub fn render_context_mut(&self) -> &RenderingContext {
         &self.render_context
+    }
+
+    /// Allocate a in-frame semaphore
+    pub fn allocate_semaphore(&mut self) -> anyhow::Result<Arc<Semaphore>> {
+        let semaphore = Arc::new(Semaphore::new(self.device())?);
+        self.semaphores.push(semaphore.clone());
+        Ok(semaphore)
     }
 }
 
