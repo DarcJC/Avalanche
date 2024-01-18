@@ -8,6 +8,11 @@ pub struct WinitWindowEvent {
     pub window_id: WindowId,
 }
 
+#[derive(Event)]
+pub struct WindowClosedEvent {
+    pub window_id: WindowId,
+}
+
 /// ## Window resized event
 ///
 /// Delegated to application because we don't have rendering context to perform operation

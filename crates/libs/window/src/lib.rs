@@ -7,7 +7,7 @@ pub mod event;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use bevy_app::{App, Plugin, Update};
-use bevy_ecs::prelude::{Component, EventReader, EventWriter, IntoSystemConfigs, IntoSystemSetConfigs, NonSend, Query, Resource, SystemSet};
+use bevy_ecs::prelude::{Commands, Component, Entity, EventReader, EventWriter, IntoSystemConfigs, IntoSystemSetConfigs, NonSend, Query, Resource, SystemSet, World};
 use raw_window_handle::{DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, WindowHandle};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{EventLoop, EventLoopBuilder};
@@ -15,7 +15,7 @@ use winit::platform::pump_events::EventLoopExtPumpEvents;
 use winit::window::{Window, WindowBuilder};
 use avalanche_hlvk::{Device, Surface, Swapchain};
 use avalanche_utils::ID_GENERATOR_32_STATIC;
-use crate::event::{WindowEventLoopClearedEvent, WindowResizedEvent, WinitWindowEvent};
+use crate::event::{WindowClosedEvent, WindowEventLoopClearedEvent, WindowResizedEvent, WinitWindowEvent};
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WindowSystemSet {
@@ -32,12 +32,16 @@ impl Plugin for WindowSystemPlugin {
         app.add_event::<WinitWindowEvent>();
         app.add_event::<WindowResizedEvent>();
         app.add_event::<WindowEventLoopClearedEvent>();
+        app.add_event::<WindowClosedEvent>();
         app.add_systems(Update, (
             winit_event_poll_worker_system
                 .before(window_update_system)
                 .in_set(WindowSystemSet::EventLoop)
             ,
-            window_update_system
+            (
+                window_close_system.before(window_update_system),
+                window_update_system,
+            )
                 .in_set(WindowSystemSet::Update),
         ));
     }
@@ -95,7 +99,11 @@ pub fn new_window_component(event_loop: &EventLoop<()>) -> anyhow::Result<Window
     Ok(WindowComponent::new(Arc::new(window)))
 }
 
-fn winit_event_poll_worker_system(window_manager: NonSend<WindowManager>, mut window_event_sender: EventWriter<WinitWindowEvent>) {
+fn winit_event_poll_worker_system(
+    window_manager: NonSend<WindowManager>,
+    mut window_event_sender: EventWriter<WinitWindowEvent>,
+    mut close_event_sender: EventWriter<WindowClosedEvent>
+) {
     #[cfg(feature = "trace")]
     let _span = bevy_utils::tracing::info_span!("poll winit event loop").entered();
 
@@ -109,8 +117,8 @@ fn winit_event_poll_worker_system(window_manager: NonSend<WindowManager>, mut wi
                     match event {
                         Event::WindowEvent {
                             event: WindowEvent::CloseRequested,
-                            window_id: _window_id,
-                        } => event_target.exit(),
+                            window_id,
+                        } => close_event_sender.send(WindowClosedEvent { window_id }),
                         Event::WindowEvent {
                             event: window_event,
                             window_id,
@@ -121,14 +129,18 @@ fn winit_event_poll_worker_system(window_manager: NonSend<WindowManager>, mut wi
         );
 }
 
-fn window_update_system(mut event_reader: EventReader<WinitWindowEvent>, mut event_writer: EventWriter<WindowResizedEvent>, windows: Query<&WindowComponent>) {
+fn window_update_system(
+    mut event_reader: EventReader<WinitWindowEvent>,
+    mut event_writer: EventWriter<WindowResizedEvent>,
+    windows: Query<(Entity, &WindowComponent)>
+) {
     #[cfg(feature = "trace")]
     let _span = bevy_utils::tracing::info_span!("handle window event").entered();
 
     event_reader.read().for_each(|evt| {
-        if let Some(window) = windows
+        if let Some((_, window)) = windows
             .iter()
-            .find(|i| i.window.id() == evt.window_id) {
+            .find(|(_entity, i)| i.window.id() == evt.window_id) {
             match evt.window_event {
                 // WindowEvent::Resized(extent) => {
                 // },
@@ -140,6 +152,20 @@ fn window_update_system(mut event_reader: EventReader<WinitWindowEvent>, mut eve
             }
         }
     });
+}
+
+fn window_close_system(
+    mut close_reader: EventReader<WindowClosedEvent>,
+    windows: Query<(Entity, &WindowComponent)>,
+    mut commands: Commands,
+) {
+    for evt in close_reader.read() {
+        if let Some((entity, _window)) = windows
+            .iter()
+            .find(|(_entity, i)| i.window.id() == evt.window_id) {
+            commands.entity(entity).despawn();
+        }
+    }
 }
 
 
