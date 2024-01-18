@@ -1,6 +1,8 @@
+use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Mutex};
 use anyhow::Result;
 use ash::vk;
+use ash::vk::Handle;
 use gpu_allocator::MemoryLocation;
 use gpu_allocator::vulkan::{Allocation, AllocationCreateDesc, AllocationScheme, Allocator};
 use crate::{Context, Device};
@@ -155,6 +157,18 @@ impl Context {
             width,
             height
         )
+    }
+}
+
+impl Debug for Image {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Image[{}] Extent {:?} Format {:?} External?: {}", self.inner.as_raw(), self.extent, self.format, self.is_external_referenced)
+    }
+}
+
+impl Debug for ImageView {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "ImageView({})", self.inner.as_raw())
     }
 }
 

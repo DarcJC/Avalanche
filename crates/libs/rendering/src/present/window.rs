@@ -1,12 +1,14 @@
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use bevy_app::{App, Plugin};
-use bevy_ecs::prelude::{Entity, IntoSystemConfigs, ResMut};
+use bevy_ecs::prelude::{Entity, IntoSystemConfigs, Query, ResMut};
 use bevy_ecs::system::Resource;
+use bevy_log::info;
 use bevy_utils::EntityHashMap;
 use avalanche_hlvk::{Surface, Swapchain};
-use avalanche_window::HandleWrapper;
+use avalanche_window::{HandleWrapper, WindowComponent};
 use crate::{ExtractSchedule, Render, RenderApp, RenderSet};
+use crate::prelude::Extract;
 
 pub struct WindowRenderPlugin;
 
@@ -50,6 +52,12 @@ impl DerefMut for ExtractedWindows {
 
 fn extract_windows(
     mut extracted_windows: ResMut<ExtractedWindows>,
-) {}
+    windows: Extract<Query<(Entity, &WindowComponent)>>,
+) {
+    windows
+        .iter()
+        .for_each(|(entity, component)| {
+        });
+}
 
 fn prepare_windows() {}

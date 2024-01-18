@@ -1,9 +1,11 @@
+use std::fmt::{Debug, Formatter};
 use std::mem::{align_of, size_of_val};
 use std::sync::{Arc, Mutex};
 use ash::vk;
 use gpu_allocator::MemoryLocation;
 use gpu_allocator::vulkan::{Allocation, AllocationCreateDesc, AllocationScheme, Allocator};
 use anyhow::Result;
+use ash::vk::Handle;
 use crate::Device;
 
 pub struct Buffer {
@@ -68,6 +70,12 @@ impl Buffer {
     pub fn get_device_address(&self) -> u64 {
         let addr_info = vk::BufferDeviceAddressInfo::builder().buffer(self.inner);
         unsafe { self.device.inner.get_buffer_device_address(&addr_info) }
+    }
+}
+
+impl Debug for Buffer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Buffer {} (size: {})", self.inner.as_raw(), self.size)
     }
 }
 

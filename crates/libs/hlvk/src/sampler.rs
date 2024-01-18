@@ -1,6 +1,8 @@
+use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use anyhow::Result;
 use ash::vk;
+use ash::vk::Handle;
 use crate::{Context, Device};
 
 pub struct Sampler {
@@ -19,6 +21,12 @@ impl Sampler {
 impl Context {
     pub fn create_sampler(&self, create_info: &vk::SamplerCreateInfo) -> Result<Sampler> {
         Sampler::new(self.device.clone(), create_info)
+    }
+}
+
+impl Debug for Sampler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Sampler({})", self.inner.as_raw())
     }
 }
 

@@ -6,6 +6,7 @@ use bevy_ecs::prelude::{IntoSystemConfigs, IntoSystemSetConfigs, Mut, Resource, 
 use bevy_ecs::schedule::ScheduleLabel;
 use bevy_ecs::world::World;
 use crate::extract::{extract_rendering_context, release_referenced_rendering_context};
+use crate::prelude::window::WindowRenderPlugin;
 use crate::runner::system::render_system;
 
 mod extract;
@@ -142,6 +143,10 @@ impl Plugin for RenderingPipelinePlugin {
     fn build(&self, app: &mut App) {
         // SAFETY: plugin is build on main thread
         unsafe { initialize_render_app(app); }
+
+        app.add_plugins((
+            WindowRenderPlugin,
+        ));
     }
 
     fn ready(&self, _app: &App) -> bool {
