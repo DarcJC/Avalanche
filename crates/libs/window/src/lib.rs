@@ -7,7 +7,7 @@ pub mod event;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use bevy_app::{App, Plugin, Update};
-use bevy_ecs::prelude::{Commands, Component, Entity, EventReader, EventWriter, IntoSystemConfigs, IntoSystemSetConfigs, NonSend, Query, Resource, SystemSet, World};
+use bevy_ecs::prelude::{Commands, Component, Entity, EventReader, EventWriter, IntoSystemConfigs, IntoSystemSetConfigs, NonSend, Query, Resource, SystemSet};
 use raw_window_handle::{DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, WindowHandle};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{EventLoop, EventLoopBuilder};
@@ -113,7 +113,7 @@ fn winit_event_poll_worker_system(
         .unwrap()
         .pump_events(
             Some(Duration::ZERO),
-            |event, event_target| {
+            |event, _event_target| {
                     match event {
                         Event::WindowEvent {
                             event: WindowEvent::CloseRequested,

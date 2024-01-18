@@ -82,6 +82,10 @@ impl FrameContext {
         queue.submit(&self.command_buffers, &[], std::slice::from_ref(signal_semaphore), self.sync_fence.as_ref())
     }
 
+    pub fn frame_finish_semaphore(&self) -> Arc<Semaphore> {
+        self.frame_finish_semaphore.clone()
+    }
+
     #[inline]
     pub fn device(&self) -> Arc<Device> {
         self.render_context.device.clone()
