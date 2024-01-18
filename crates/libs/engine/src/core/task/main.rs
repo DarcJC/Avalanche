@@ -11,7 +11,7 @@ use log::warn;
 use avalanche_hlvk::{ContextBuilder, DeviceFeatures, Swapchain};
 use avalanche_rendering::prelude::RenderingContext;
 use avalanche_rendering::{INIT_COMMAND_POOL_NUM, RenderingPipelinePlugin, RenderSet};
-use avalanche_window::{new_window_component, WindowComponent, WindowManager, WindowSystemPlugin, WindowSystemSet};
+use avalanche_window::{new_window_component, PrimaryWindowComponent, WindowComponent, WindowManager, WindowSystemPlugin, WindowSystemSet};
 use avalanche_window::event::{WindowEventLoopClearedEvent, WindowResizedEvent};
 use crate::core::event::BeginRenderWindowViewEvent;
 
@@ -56,7 +56,7 @@ fn start_rendering_system_with_window(world: &mut World) {
     };
 
     world.insert_resource(context);
-    world.spawn(first_window_component);
+    world.spawn((first_window_component, PrimaryWindowComponent));
 }
 
 fn window_resize_handler(mut event_reader: EventReader<WindowResizedEvent>, windows: Query<&WindowComponent>, rendering_context: Res<RenderingContext>) {
@@ -77,7 +77,7 @@ fn window_resize_handler(mut event_reader: EventReader<WindowResizedEvent>, wind
     })
 }
 
-fn window_event_loop_cleared(mut event_reader: EventReader<WindowEventLoopClearedEvent>, _event_sender: EventWriter<BeginRenderWindowViewEvent>, _windows: Query<&WindowComponent>, _rendering_context: Res<RenderingContext>) {
+fn _window_event_loop_cleared(mut event_reader: EventReader<WindowEventLoopClearedEvent>, _event_sender: EventWriter<BeginRenderWindowViewEvent>, _windows: Query<&WindowComponent>, _rendering_context: Res<RenderingContext>) {
     #[cfg(feature = "trace")]
     let _span = bevy_utils::tracing::info_span!("window present queued").entered();
 
@@ -92,17 +92,12 @@ impl Plugin for EngineContextSetupPlugin {
         app.configure_sets(Update, (
                 WindowSystemSet::EventLoop,
                 WindowSystemSet::Update,
-                RenderSet::Notify,
             ).chain());
         // app.add_systems(PostStartup, start_rendering_system_with_window);
         app.add_systems(Update, (
             window_resize_handler
                 .after(WindowSystemSet::Update)
                 .before(RenderSet::Notify),
-            window_event_loop_cleared
-                .after(window_resize_handler)
-                .after(WindowSystemSet::Update)
-                .in_set(RenderSet::Notify),
         ));
         app.add_event::<BeginRenderWindowViewEvent>();
         start_rendering_system_with_window(&mut app.world);
@@ -138,6 +133,7 @@ pub struct MainTaskPluginGroup;
 
 impl PluginGroup for MainTaskPluginGroup {
     fn build(self) -> PluginGroupBuilder {
+        #[allow(unused_mut)]
         let mut builder = PluginGroupBuilder::start::<Self>()
             .add(LogSystemPlugin)
             .add(WindowSystemPlugin)

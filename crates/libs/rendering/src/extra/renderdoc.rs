@@ -1,8 +1,5 @@
-use std::sync::{Arc, RwLock};
 use bevy_app::{App, Plugin};
 use bevy_ecs::prelude::{Resource, World};
-use bevy_log::{info, warn};
-use crate::{ExtractSchedule, MainWorld};
 
 #[cfg(feature = "renderdoc")]
 type RenderDocApiVersion = renderdoc::V141;
@@ -20,14 +17,14 @@ type RdV = renderdoc::RenderDoc<RenderDocApiVersion>;
 #[derive(Resource, Clone)]
 pub struct RenderDoc {
     #[cfg(feature = "renderdoc")]
-    pub inner: Arc<RwLock<RdV>>,
+    pub inner: std::sync::Arc<std::sync::RwLock<RdV>>,
 }
 
 impl RenderDoc {
     #[cfg(feature = "renderdoc")]
     pub(crate) fn new(rd: RdV) -> Self {
         Self {
-            inner: Arc::new(RwLock::new(rd)),
+            inner: std::sync::Arc::new(std::sync::RwLock::new(rd)),
         }
     }
 }
@@ -39,11 +36,13 @@ unsafe impl Send for RenderDoc {}
 pub struct RenderDocPlugin;
 
 impl Plugin for RenderDocPlugin {
+    #[allow(unused_variables)]
     fn build(&self, app: &mut App) {
         #[cfg(feature = "renderdoc")]
         {
             use renderdoc::Version;
             use renderdoc::CaptureOption::*;
+            use bevy_log::{info, warn};
 
             let result = RdV::new();
             if result.is_ok() {
@@ -61,7 +60,7 @@ impl Plugin for RenderDocPlugin {
                 info!("Connected to RenderDoc api (version: {:?}).", RenderDocApiVersion::VERSION);
 
                 app
-                    .add_systems(ExtractSchedule, (
+                    .add_systems(crate::ExtractSchedule, (
                         extract_to_render_app,
                     ));
             } else {
@@ -72,8 +71,9 @@ impl Plugin for RenderDocPlugin {
     }
 }
 
+#[allow(dead_code)]
 fn extract_to_render_app(render_world: &mut World) {
-    let main_world = render_world.resource::<MainWorld>();
+    let main_world = render_world.resource::<crate::MainWorld>();
     let renderdoc = main_world.get_resource::<RenderDoc>().unwrap();
     let renderdoc = renderdoc.clone();
     render_world.insert_resource(renderdoc);

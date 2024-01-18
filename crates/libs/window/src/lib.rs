@@ -151,8 +151,8 @@ pub struct HandleWrapper {
     display_handle: RawDisplayHandle,
 }
 
-impl From<Window> for HandleWrapper {
-    fn from(value: Window) -> Self {
+impl From<&Window> for HandleWrapper {
+    fn from(value: &Window) -> Self {
         Self {
             window_handle: value.window_handle().unwrap().as_raw(),
             display_handle: value.display_handle().unwrap().as_raw(),
